@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sheetal Ice-Cream Udhyog</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <a href="#homeSection" class="logo-link">
+        <img src="Resources/logo.png" alt="Sheetal Ice Cream Logo" class="logo" />
+      </a>
+      <div class="brand-name">
+        <span class="line1">Sheetal</span>
+        <span class="line2">Ice Cream</span>
+      </div>
+    </div>
+    <nav class="nav-right">
+      <button id="homeBtn">Home</button>
+      <button id="orderBtn">Order</button>
+      <button id="contactBtn">Contact</button>
+
+      <button id="themeToggleBtn" aria-label="Toggle Light/Dark Mode">
+        <span class="icon">☀️</span> </button>
+    </nav>
+  </header>  
+  
+
+  <!-- Home Section -->
+ <section id="homeSection" class="section active">
+      <h2>Welcome to Sheetal Ice-Cream</h2>
+      <p>Located at Prakritinagar, Gokarneshwor-8, Kathmandu, Nepal</p>
+      <p>Call us: 9841550000 / 9861187473</p>
+      <h3>Flavours:</h3>
+      <div class="flavours">
+        </div>
+    </section>
+
+  <!-- Order Section-->
+  <section id="orderSection" class="section hidden">
+    <h2>Place Your Order</h2>
+    <form id="orderForm">
+      <div class="form-group">
+         <label for="orderName">Name:</label>
+          <input type="text" id="orderName" name="name" required>
+
+        <label for="orderPhone">Phone:</label>
+        <input type="tel" id="orderPhone" name="phone" minlength="10" pattern="9[78][0-9]{8}" placeholder="98XXXXXXXX" required>
+    
+       <label for="orderAddress">Address:</label>
+        <input type="text" id="orderAddress" name="address" required>
+      </div>
+  
+      <!-- Multiple flavours with quantity -->
+        <div id="flavourContainer">
+          <div class="flavourRow">
+            <label>Select Flavour:
+              <select name="flavour[]" class="flavourSelect" required>
+                </select>
+            </label>
+            <label>Quantity:
+              <input type="number" name="quantity[]" min="1" value="1" required>
+            </label>
+            <button type="button" class="removeFlavour" style="display:none;">Remove</button>
+          </div>
+      </div>
+
+     <div class="order-controls">
+        <p id="totalAmount">Total: रु0.00</p>
+        <div class="action-buttons">
+          <button type="button" id="addFlavour">Add Flavour</button>
+          <button type="button" id="submitOrderBtn">Review & Place Order</button>
+        </div>
+      </div>
+    </form>
+      <div id="orderMessage" class="hidden">Thanks for your order!</div>
+    </section>
+  
+
+  <!-- Contact Section  -->
+  <section id="contactSection">
+    <h2>Contact Us</h2>
+    <p>We’re happy to hear from you! Message or call us anytime.</p>
+    <ul>
+      <li><strong>Phone 1:</strong> <a href="tel:+9779841550000">9841550000</a></li>
+      <li><strong>Phone 2:</strong> <a href="tel:+9779861187473">9861187473</a></li>
+      <li><strong>Email:</strong> <a href="mailto:sheetal.icecream@gmail.com">sheetal.icecream@gmail.com</a></li>
+    </ul>
+    <p>Follow us on social media:</p>
+    <p>
+      <a href="https://www.facebook.com/indira.bhattaraikarki">Facebook</a> | <a href="#">Instagram</a>
+    </p>
+  </section>  
+
+  <div id="previewModal" class="hidden">
+  <div class="modalContent">
+  <button id="closePreviewBtn" style="float:right; background:none; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+  <h2>Order Preview</h2>
+  <div id="previewList"></div>
+  <p id="previewTotal"></p>
+  <button id="placeOrderBtn">Place Order</button>
+</div>
+</div>
+
+  <!-- Footer Section -->
+<footer id="footer">
+  <p>&copy; 2025 Sheetal Ice-Cream Udhyog | All Rights Reserved</p>
+  <p>Contact: 9841550000, 9861187473</p>
+  <p>Location: Prakritinagar, Gokarneshwor-8, Kathmandu, Nepal</p>
+
+    <script src="script.js"></script>
+</footer>
+</body>
+</html>
