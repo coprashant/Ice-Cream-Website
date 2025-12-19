@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-IcecreamApplication<icecream>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.sheetal.icecream.IcecreamApplication",
+            "projectName": "icecream",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

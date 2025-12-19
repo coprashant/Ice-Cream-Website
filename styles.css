@@ -18,10 +18,13 @@ body {
 * {
   box-sizing: border-box;
 }
+/*Login Page Styles*/
+
+
 
 .header {
   background-color: var(--header-background);
-  padding: 20px 40px;
+  padding: 10px 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -37,7 +40,8 @@ body {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 15px;
+  flex-shrink: 0;
 }
 
 .logo {
@@ -72,23 +76,20 @@ body {
 nav button {
   font-size: medium;
   background: none;
-  padding: 12px 24px;
+  padding: 12px 15px;
   border: none;
-  border-radius: 25px;
   cursor: pointer;
   transition: background-color 0.3s, color 0.3s;
   color: var(--text-color); 
 }
 
 nav button:hover {
-  background-color: white; 
-  color: #039be5; 
-  transform: scale(1.05);
+  color: white; 
 }
 
 .nav-right {
   display: flex;
-  gap: 2px; 
+  gap: 10px; 
 }
 
 .nav-right button {
@@ -144,13 +145,12 @@ body.dark-mode {
     margin-left: 10px;
     border-radius: 50%;
     background-color: var(--primary-color);
-    box-shadow: 0 2px 5px var(--shadow-color);
+    border: none;
+    cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow: hidden; /* Hide overflow during icon swap */
-    
-    /* Ensure it resets the nav button styles that restrict size */
+    overflow: hidden; 
     font-size: 1.5rem; 
 }
 
@@ -158,7 +158,7 @@ body.dark-mode {
 #themeToggleBtn .icon {
     font-size: 1.5rem;
     transition: transform 0.5s ease, opacity 0.5s ease;
-    display: inline-block; /* Essential for transform */
+    display: inline-block; 
     line-height: 1;
 }
 
@@ -538,101 +538,88 @@ input[type="text"], input[type="number"], select {
 
 
 
+/* --- Hamburger Menu Styles --- */
+.hamburger {
+  display: none; /* Hidden on desktop */
+  flex-direction: column;
+  cursor: pointer;
+  background: none;
+  border: none;
+  gap: 5px;
+  z-index: 1001;
+}
 
+.hamburger span {
+  width: 30px;
+  height: 3px;
+  background-color: var(--text-color);
+  transition: 0.3s;
+}
 
+/* Container for the toggle and hamburger */
+.header-right-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-left: auto; 
+}
 
-
-
-
-
-
-
-
-
-
-
-
-@media (max-width: 600px) {
-  #footer {
-    font-size: 0.8rem;
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+  .hamburger {
+    display: flex;
   }
 
-  .header {
-    flex-wrap: nowrap;
-    justify-content: center;
-    gap: 10px;
+ .nav-right {
+    display: none; /* Hide by default on mobile */
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    flex-direction: column;
+    background-color: var(--header-background);
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px var(--shadow-color);
+    width: 200px;
+    z-index: 1001;
   }
 
-  .nav-right {
-    justify-content: center;
-    flex-wrap: nowrap;
+  .nav-right.active {
+    display: flex;
   }
 
-  .logo {
-    height: 50px;
+  .nav-right button {
+    width: 100%;
+    text-align: left;
+    padding: 12px;
+    border-radius: 10px;
   }
 
-  .brand-name .line1,
-  .brand-name .line2 {
-    font-size: 1rem;
-  }
+  /* Animate Hamburger to "X" */
+  .hamburger.active span:nth-child(1) { transform: translateY(8px) rotate(45deg); }
+  .hamburger.active span:nth-child(2) { opacity: 0; }
+  .hamburger.active span:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
 
-  nav button {
-    padding: 8px 16px;
-    font-size: 0.9rem;
-  }
+  /* Section Adjustments */
+  #homeSection h2 { font-size: 2rem; }
+  .form-group { grid-template-columns: 1fr; }
   
-   #orderSection {
+  /* Make buttons easier to tap on mobile */
+  nav button {
+    width: 80%;
+    font-size: 1.1rem;
     padding: 15px;
   }
-
-  .flavourRow {
-    flex-direction: column;
-  }
-
-  #flavourContainer {
-    margin-bottom: 10px;
-  }
-
-  button {
-    width: 100%;
-  }
-
-  /* FIX: Ensure user details stack vertically on mobile */
-  .form-group {
-    grid-template-columns: 1fr; /* Switch to a single column */
-    gap: 10px; /* Reduce vertical gap for mobile */
-  }
-
-  /* FIX: Ensure the Address field still works (though it's 1fr now, this is good practice) */
-  #orderAddress {
-    grid-column: auto; /* Reset grid column span */
-  }
-
-  /* IMPROVEMENT: Stack Total and Buttons */
-  .order-controls {
-    flex-direction: column; /* Stack total and buttons vertically */
-    align-items: stretch; /* Stretch items to full width */
-  }
-
-  /* Make Total label look like a full-width header */
-  #totalAmount {
-    text-align: center;
-    padding: 10px 0;
-    margin-bottom: 10px; /* Space between total and button group */
-    border-bottom: 1px solid #ddd;
-  }
-
-  /* Make the action buttons stack or take full width */
-  .action-buttons {
-    flex-direction: column; /* Stack the add/review buttons */
-    gap: 10px;
-    width: 100%;
-  }
-
-  /* Ensure the buttons inside the action group take full width */
-  .action-buttons button {
-    width: 100%;
-    margin: 0;
-  }
 }
+
+
+
+
+
+
+
+
+
+
+
+

@@ -17,20 +17,18 @@ const flavourData = {
     ]
 };
 
-// --- 2. DYNAMICALLY GENERATE FLAVOUR SELECT OPTIONS ---
-function getFlavourSelectHTML() {
-    let selectHTML = `
-        <select name="flavour[]" class="flavourSelect" required>
-            <option value="" disabled selected>Select a Flavour</option>
-    `;
+// --- 2. HELPER FUNCTIONS ---
 
+//Login/Logout Functions
+
+
+function getFlavourSelectHTML() {
+    let selectHTML = `<select name="flavour[]" class="flavourSelect" required>
+                        <option value="" disabled selected>Select a Flavour</option>`;
     for (const category in flavourData) {
         selectHTML += `<optgroup label="${category}">`;
         flavourData[category].forEach(item => {
-            // Use item.name for the value and item.price for the data-price attribute
-            selectHTML += `
-                <option value="${item.name}" data-price="${item.price}">${item.name} - रु${item.price}</option>
-            `;
+            selectHTML += `<option value="${item.name}" data-price="${item.price}">${item.name} - रु${item.price}</option>`;
         });
         selectHTML += `</optgroup>`;
     }
@@ -38,285 +36,209 @@ function getFlavourSelectHTML() {
     return selectHTML;
 }
 
-// --- 3. DYNAMICALLY RENDER FLAVOURS IN HOME SECTION (Bonus) ---
 function renderHomeFlavours() {
     const flavoursDiv = document.querySelector('.flavours');
-    flavoursDiv.innerHTML = ''; // Clear existing content
-
+    if (!flavoursDiv) return;
+    flavoursDiv.innerHTML = ''; 
     for (const category in flavourData) {
         const categoryDiv = document.createElement('div');
-        const categoryLabel = category.replace(/-/g, ' ');
         let flavourList = flavourData[category].map(item => item.name).join(', ');
-        
-        categoryDiv.innerHTML = `
-            <strong>${category}:</strong> ${flavourList}
-        `;
+        categoryDiv.innerHTML = `<strong>${category}:</strong> ${flavourList}`;
         flavoursDiv.appendChild(categoryDiv);
     }
 }
 
-// --- 4. Initialization and Existing Functions
+// --- 3. CORE NAVIGATION & UI LOGIC ---
 
-// Section toggling
-const homeSection = document.getElementById("homeSection");
-const orderSection = document.getElementById("orderSection");
-const contactSection = document.getElementById("contactSection");
 const previewModal = document.getElementById('previewModal');
-const closePreviewBtn = document.getElementById('closePreviewBtn');
-const placeOrderBtn = document.getElementById('placeOrderBtn');
+
+function showSection(sectionId) {
+    const sectionIds = ["homeSection", "orderSection", "contactSection"];
+    sectionIds.forEach(id => {
+        const sec = document.getElementById(id);
+        if (id === sectionId) {
+            sec.classList.add("active");
+            sec.classList.remove("hidden");
+        } else {
+            sec.classList.remove("active");
+            sec.classList.add("hidden");
+        }
+    });
+    // Close mobile menu
+    document.getElementById('navMenu').classList.remove('active');
+    document.getElementById('hamburger').classList.remove('active');
+    window.scrollTo(0, 0);
+}
 
 function openModal() {
-   previewModal.classList.remove('hidden');
-  setTimeout(() => {
-        previewModal.classList.add('show');
-    }, 10);
+    previewModal.classList.remove('hidden');
+    setTimeout(() => previewModal.classList.add('show'), 10);
 }
 
 function closeModal() {
-  previewModal.classList.remove('show');
-  setTimeout(() => {
-            previewModal.classList.add('hidden'); 
-    }, 300);
+    previewModal.classList.remove('show');
+    setTimeout(() => previewModal.classList.add('hidden'), 300);
 }
-
-document.getElementById("homeBtn").onclick = () => {
-  homeSection.classList.add("active");
-  orderSection.classList.remove("active");
-  contactSection.classList.remove("active");
-};
-
-document.getElementById("orderBtn").onclick = () => {
-  homeSection.classList.remove("active");
-  orderSection.classList.add("active");
-  contactSection.classList.remove("active");
-};
-
-document.getElementById("contactBtn").onclick = () => {
-  homeSection.classList.remove("active");
-  orderSection.classList.remove("active");
-  contactSection.classList.add("active");
-};
-
-document.addEventListener('DOMContentLoaded', function () {
-  window.addEventListener('scroll', function () {
-    const header = document.querySelector('.header');
-    if (window.scrollY > 50) {
-      header.classList.add('shrink');
-    } else {
-      header.classList.remove('shrink');
-    }
-  });
-
-    const initialFlavourLabel = document.querySelector('.flavourRow label');
-    initialFlavourLabel.innerHTML = `
-        Select Flavour:
-        ${getFlavourSelectHTML()}
-    `;
-    
-    renderHomeFlavours(); 
-
-    // Close on '×' button
-      closePreviewBtn.onclick = closeModal;
-
-    // Close when clicking outside the modal content
-    previewModal.onclick = (e) => {
-     if (e.target === previewModal) {
-      closeModal();
-      }
-    };
-
-    placeOrderBtn.onclick = () => {
-        const form = document.getElementById('orderForm');
-        const previewTotalText = document.getElementById('previewTotal').textContent || 'Total: रु0';
-        
-        alert(`Order placed! ${previewTotalText}. We’ll contact you soon.`);
-        previewModal.classList.remove('show');
-        previewModal.classList.add('hidden');
-        form.reset();
-        
-        // Reset flavour rows
-        const flavourContainer = document.getElementById('flavourContainer');
-        flavourContainer.innerHTML = `
-            <div class="flavourRow">
-                <label>Select Flavour: ${getFlavourSelectHTML()}</label>
-                <label>Quantity:
-                    <input type="number" name="quantity[]" min="1" value="1" required>
-                </label>
-                <button type="button" class="removeFlavour" style="display:none;">Remove</button>
-            </div>
-        `;
-        updateRemoveButtons();
-        calculateTotal();
-
-        const message = document.getElementById('orderMessage');
-        message.classList.remove('hidden');
-        setTimeout(() => message.classList.add('hidden'), 5000);
-    };
-    const themeToggleBtn = document.getElementById('themeToggleBtn');
-    const themeIcon = themeToggleBtn.querySelector('.icon');
-
-    // 1. Check for stored theme preference or use system preference
-    const currentTheme = localStorage.getItem('theme');
-
-    if (currentTheme === 'dark') {
-        document.body.classList.add('dark-mode');
-        themeIcon.textContent = '🌙';
-    } else if (currentTheme === 'light') {
-        document.body.classList.remove('dark-mode');
-        themeIcon.textContent = '☀️';
-    }
-
-    // 2. Handle the click event
-    themeToggleBtn.onclick = () => {
-        const isDarkMode = document.body.classList.toggle('dark-mode');
-
-        if (isDarkMode) {
-            themeIcon.textContent = '🌙';
-            localStorage.setItem('theme', 'dark');
-        } else {
-            themeIcon.textContent = '☀️';
-            localStorage.setItem('theme', 'light');
-        }
-    };
-});
-
-
-// Show homepage by default
-window.onload = () => {
-  homeSection.classList.add("active");
-  updateRemoveButtons(); // Ensure the remove button functionality works on load
-  calculateTotal(); // Calculate total on load
-};
-
-
-// Handle Add Another Flavor button
-function updateRemoveButtons() {
-  const allRows = document.querySelectorAll('.flavourRow');
-  const removeButtons = document.querySelectorAll('.removeFlavour');
-  if (allRows.length > 1) {
-    removeButtons.forEach(btn => btn.style.display = 'inline-block');
-  } else {
-    removeButtons.forEach(btn => btn.style.display = 'none');
-  }
-}
-
-// Event delegation to handle remove clicks
-document.getElementById("flavourContainer").addEventListener("click", function (e) {
-  if (e.target.classList.contains("removeFlavour")) {
-    e.target.closest(".flavourRow").remove();
-    updateRemoveButtons();
-    calculateTotal(); 
-  }
-});
-
-document.getElementById("flavourContainer").addEventListener("input", function (e) {
-    // Check if the input or select changed is inside a .flavourRow
-    if (e.target.closest(".flavourRow")) {
-        calculateTotal();
-    }
-});
-
-// Also call calculateTotal on change (specifically for the <select> element)
-document.getElementById("flavourContainer").addEventListener("change", function (e) {
-    if (e.target.classList.contains("flavourSelect")) {
-        calculateTotal();
-    }
-});
-
-// Logo link to smooth scroll to home
-document.querySelector('.logo-link').addEventListener('click', function (event) {
-  event.preventDefault();
-  document.querySelector('#homeSection').scrollIntoView({
-    behavior: 'smooth',
-    block: 'start'
-  });
-
-  homeSection.classList.add('active');
-  orderSection.classList.remove('active');
-  contactSection.classList.remove('active');
-});
 
 function calculateTotal() {
     const rows = document.querySelectorAll('.flavourRow');
     let total = 0;
-    
     rows.forEach(row => {
         const select = row.querySelector('.flavourSelect');
-        const quantityInput = row.querySelector('input[type="number"]');
-
-        // Check if a valid flavor is selected (the value must not be empty)
-        if (select && quantityInput && select.value !== "") { 
-            const quantity = parseInt(quantityInput.value) || 0;
-            
-            // Get the selected option element
-            const selectedOption = select.selectedOptions[0];
-            
-            // CRITICAL FIX: Check if the selected option HAS the data-price attribute
-            const price = parseFloat(selectedOption.dataset.price) || 0;
-            
-            total += price * quantity;
+        const qtyInput = row.querySelector('input[type="number"]');
+        if (select && qtyInput && select.value !== "") { 
+            const price = parseFloat(select.selectedOptions[0].dataset.price) || 0;
+            total += price * (parseInt(qtyInput.value) || 0);
         }
     });
-    
     document.getElementById('totalAmount').textContent = "Total: रु" + total.toFixed(2);
 }
 
-// ✅ Correct Event Listeners: Trigger calculation on quantity change (input) or flavor change (change)
+function updateRemoveButtons() {
+    const allRows = document.querySelectorAll('.flavourRow');
+    document.querySelectorAll('.removeFlavour').forEach(btn => {
+        btn.style.display = allRows.length > 1 ? 'inline-block' : 'none';
+    });
+}
 
-document.getElementById("addFlavour").onclick = function () {
-    const flavourContainer = document.getElementById("flavourContainer");
+// --- 4. EVENT LISTENERS (Wait for Load) ---
 
-    const newFlavourRow = document.createElement("div");
-    newFlavourRow.classList.add("flavourRow");
+document.addEventListener('DOMContentLoaded', () => {
+    // Nav Buttons
+    document.getElementById("homeBtn").onclick = () => showSection("homeSection");
+    document.getElementById("orderBtn").onclick = () => showSection("orderSection");
+    document.getElementById("contactBtn").onclick = () => showSection("contactSection");
 
-    // Use the function to get the correct select HTML
-    newFlavourRow.innerHTML = `
-        <label>Flavor:
-            ${getFlavourSelectHTML()}
-        </label>
-        <label>Quantity:
-            <input type="number" name="quantity[]" min="1" value="1" required>
-        </label>
-        <button type="button" class="removeFlavour">Remove</button>
-    `;
+    // Hamburger
+    const hamburger = document.getElementById('hamburger');
+    const navMenu = document.getElementById('navMenu');
+    hamburger.onclick = () => {
+        hamburger.classList.toggle('active');
+        navMenu.classList.toggle('active');
+    };
 
-    flavourContainer.appendChild(newFlavourRow);
+    // Theme Toggle
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const themeIcon = themeToggleBtn.querySelector('.icon');
+    if (localStorage.getItem('theme') === 'dark') {
+        document.body.classList.add('dark-mode');
+        themeIcon.textContent = '🌙';
+    }
+    themeToggleBtn.onclick = () => {
+        const isDark = document.body.classList.toggle('dark-mode');
+        themeIcon.textContent = isDark ? '🌙' : '☀️';
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    };
+
+    // Header Shrink
+    window.addEventListener('scroll', () => {
+        const header = document.querySelector('.header');
+        window.scrollY > 50 ? header.classList.add('shrink') : header.classList.remove('shrink');
+    });
+
+    // Initial Setup
+    renderHomeFlavours();
+    const firstRowLabel = document.querySelector('.flavourRow label');
+    if (firstRowLabel) firstRowLabel.innerHTML = `Select Flavour: ${getFlavourSelectHTML()}`;
+    updateRemoveButtons();
+    calculateTotal();
+});
+
+// --- 5. ORDER FORM FUNCTIONALITIES ---
+
+document.getElementById("addFlavour").onclick = () => {
+    const container = document.getElementById("flavourContainer");
+    const row = document.createElement("div");
+    row.classList.add("flavourRow");
+    row.innerHTML = `
+        <label>Flavor: ${getFlavourSelectHTML()}</label>
+        <label>Quantity: <input type="number" name="quantity[]" min="1" value="1" required></label>
+        <button type="button" class="removeFlavour">Remove</button>`;
+    container.appendChild(row);
     updateRemoveButtons();
     calculateTotal();
 };
 
+document.getElementById("flavourContainer").onclick = (e) => {
+    if (e.target.classList.contains("removeFlavour")) {
+        e.target.closest(".flavourRow").remove();
+        updateRemoveButtons();
+        calculateTotal();
+    }
+};
 
-// Handle form submit
-// Open preview modal on submit
-document.getElementById('submitOrderBtn').onclick = function(e) {
+document.getElementById("flavourContainer").oninput = calculateTotal;
+
+document.getElementById('submitOrderBtn').onclick = (e) => {
     e.preventDefault();
     const form = document.getElementById('orderForm');
+    if (!form.checkValidity()) { form.reportValidity(); return; }
 
-    if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-    }
-
-    const rows = document.querySelectorAll('.flavourRow');
     const list = document.getElementById('previewList');
     list.innerHTML = "";
     let total = 0;
 
-    rows.forEach(row => {
+    document.querySelectorAll('.flavourRow').forEach(row => {
         const select = row.querySelector('.flavourSelect');
-        const flavour = select.value;
-        const quantity = row.querySelector('input[type="number"]').value;
+        const qty = row.querySelector('input[type="number"]').value;
         const price = parseFloat(select.selectedOptions[0].dataset.price) || 0;
-        const subtotal = price * quantity;
-        total += subtotal;
-
-        const li = document.createElement('p');
-        li.textContent = `${flavour} x ${quantity} = रु${subtotal.toFixed(2)}`;
-        list.appendChild(li);
+        const sub = price * qty;
+        total += sub;
+        const p = document.createElement('p');
+        p.textContent = `${select.value} x ${qty} = रु${sub.toFixed(2)}`;
+        list.appendChild(p);
     });
 
- document.getElementById('previewTotal').textContent = "Total: रु" + total.toFixed(2);
-
-    openModal(); 
+    document.getElementById('previewTotal').textContent = "Total: रु" + total.toFixed(2);
+    openModal();
 };
 
+document.getElementById('closePreviewBtn').onclick = closeModal;
+document.getElementById('placeOrderBtn').onclick = async () => {
+    // 1. Get the Total
+    const totalText = document.getElementById('previewTotal').textContent;
+    const totalAmount = parseFloat(totalText.replace(/[^\d.]/g, ''));
+    
+    // 2. Collect all items from the order rows
+    const items = [];
+    document.querySelectorAll('.flavourRow').forEach(row => {
+        const select = row.querySelector('.flavourSelect');
+        const qtyInput = row.querySelector('input[type="number"]');
+        
+        if (select && select.value) {
+            items.push({
+                itemName: select.value,
+                quantity: parseInt(qtyInput.value),
+                price: parseFloat(select.selectedOptions[0].dataset.price)
+            });
+        }
+    });
+
+    // 3. Create the Order Object (Matches your Java Model)
+         const orderData = {
+    businessId: localStorage.getItem('businessId'), // Get the ID of the logged-in shop
+    totalAmount: totalAmount,
+    status: "Pending",
+    items: items 
+};
+
+    // 4. Send the data to your Java Backend
+    try {
+        const response = await fetch('http://localhost:8080/api/orders/place', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            alert(`Order Placed! Order ID: ${result.id}`);
+            location.reload(); // Refresh the page to clear the form
+        } else {
+            alert("Backend reached, but could not save order.");
+        }
+    } catch (error) {
+        console.error("Connection Error:", error);
+        alert("Cannot reach Java server. Is it still running in VS Code?");
+    }
+};
