@@ -1,0 +1,147 @@
+/* ===== GLOBAL STYLES ===== */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+/* === LIGHT MODE === */
+:root {
+  /* Brand */
+  --accent-primary: #2E7EAA;
+  --accent-dark: #1a5f85;
+  --accent-warm: #F4A261;
+  --accent-soft: rgba(46, 126, 170, 0.08);
+  --accent-border: rgba(46, 126, 170, 0.2);
+
+  /* Backgrounds */
+  --background-primary: #F0F7FC;
+  --card-bg: #FFFFFF;
+  --input-bg: #FFFFFF;
+  --hover-bg: #F5FAFD;
+  --footer-bg: #1a3a52;
+  --footer-text: rgba(255,255,255,0.85);
+  --header-bg: rgba(240, 247, 252, 0.9);
+
+  /* Text */
+  --text-primary: #0d2333;
+  --text-secondary: #4a6175;
+  --text-muted: #8ba0b2;
+
+  /* Borders & Shadows */
+  --border-color: #daeaf6;
+  --shadow-sm: rgba(46, 126, 170, 0.06);
+  --shadow-md: rgba(46, 126, 170, 0.12);
+  --shadow-lg: rgba(46, 126, 170, 0.2);
+  --shadow-accent: rgba(46, 126, 170, 0.25);
+  --shadow-accent-hover: rgba(46, 126, 170, 0.4);
+
+  /* Blobs */
+  --blob-1: #b3d9f2;
+  --blob-2: #fde8ce;
+  --blob-3: #c3e9d9;
+
+  /* Warm soft */
+  --warm-soft: rgba(244, 162, 97, 0.08);
+}
+
+/* === DARK MODE === */
+body.dark-mode {
+  --accent-primary: #4fb3e8;
+  --accent-dark: #7dcaf0;
+  --accent-warm: #F4A261;
+  --accent-soft: rgba(79, 179, 232, 0.1);
+  --accent-border: rgba(79, 179, 232, 0.2);
+
+  --background-primary: #0d1a22;
+  --card-bg: #132233;
+  --input-bg: #1a2d3d;
+  --hover-bg: #1a2d3d;
+  --footer-bg: #091219;
+  --header-bg: rgba(13, 26, 34, 0.92);
+
+  --text-primary: #e8f4fd;
+  --text-secondary: #7aa8c4;
+  --text-muted: #4a6e85;
+
+  --border-color: #1e3347;
+  --shadow-sm: rgba(0, 0, 0, 0.2);
+  --shadow-md: rgba(0, 0, 0, 0.35);
+  --shadow-lg: rgba(0, 0, 0, 0.5);
+  --shadow-accent: rgba(79, 179, 232, 0.2);
+  --shadow-accent-hover: rgba(79, 179, 232, 0.35);
+
+  --blob-1: rgba(79, 179, 232, 0.15);
+  --blob-2: rgba(244, 162, 97, 0.12);
+  --blob-3: rgba(100, 200, 150, 0.1);
+  --warm-soft: rgba(244, 162, 97, 0.05);
+}
+
+/* === RESET & BASE === */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--background-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition: background 0.4s ease, color 0.4s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Page transition */
+.page-enter {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+/* Shared utility */
+.section-eyebrow {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--accent-primary);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.btn-primary {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 20px var(--shadow-accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px var(--shadow-accent-hover);
+  background: var(--accent-dark);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--background-primary); }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
