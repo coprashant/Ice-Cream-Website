@@ -16,6 +16,7 @@ CREATE TABLE businesses (
     address TEXT,
     phone VARCHAR(20),
     email VARCHAR(100),
+    contact_person VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
