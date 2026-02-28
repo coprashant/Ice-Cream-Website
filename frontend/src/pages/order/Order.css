@@ -236,6 +236,7 @@
   padding: 8px 0;
   outline: none;
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .qty-input::-webkit-outer-spin-button,
