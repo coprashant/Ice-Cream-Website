@@ -1,0 +1,77 @@
+# ------------------------------------------------------------------
+# Python / Django (backend)
+# ------------------------------------------------------------------
+
+# Virtual environment — never commit this
+venv/
+.venv/
+env/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Django local database (development only)
+backend/db.sqlite3
+
+# Django collected static files
+backend/staticfiles/
+backend/static_collected/
+
+# Environment variables file — contains secrets, never commit
+.env
+.env.*
+!.env.example
+
+# Django migrations are intentionally NOT ignored —
+# they should be committed so your team shares the same schema.
+# Only ignore them if you have a strong reason not to.
+# backend/icecream_api/migrations/*.py
+
+
+# ------------------------------------------------------------------
+# Node / React (frontend)
+# ------------------------------------------------------------------
+
+# Node modules — reinstalled via npm install
+frontend/node_modules/
+
+# Vite build output
+frontend/dist/
+frontend/build/
+
+# Local environment files
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# Vite cache
+frontend/.vite/
+
+
+# ------------------------------------------------------------------
+# IDE & OS files
+# ------------------------------------------------------------------
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+
+
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+
+# ------------------------------------------------------------------
+# Logs & temp files
+# ------------------------------------------------------------------
+
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp

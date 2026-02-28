@@ -1,0 +1,7 @@
+
+django>=5.2
+djangorestframework>=3.16
+django-cors-headers>=4.9
+
+# Uncomment the driver for your database:
+# psycopg2-binary>=2.9    # PostgreSQL

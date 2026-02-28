@@ -2,9 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { flavourData, getPriceByName } from '../../data/flavours';
 import './Order.css';
 
+const API_BASE = 'http://localhost:8000/api';
+
+// ─────────────────────────────────────────────
+// Single flavour row in the order form
+// ─────────────────────────────────────────────
 const OrderRow = ({ row, index, onUpdate, onRemove, showRemove }) => {
   const handleFlavourChange = (e) => {
-    const name = e.target.value;
+    const name  = e.target.value;
     const price = getPriceByName(name);
     onUpdate(index, { ...row, flavour: name, price });
   };
@@ -19,12 +24,7 @@ const OrderRow = ({ row, index, onUpdate, onRemove, showRemove }) => {
     <div className="order-row">
       <div className="order-row-select">
         <label className="field-label">Flavour</label>
-        <select
-          value={row.flavour}
-          onChange={handleFlavourChange}
-          className="select-field"
-          required
-        >
+        <select value={row.flavour} onChange={handleFlavourChange} className="select-field" required>
           <option value="" disabled>Select a flavour...</option>
           {Object.entries(flavourData).map(([category, items]) => (
             <optgroup key={category} label={category}>
@@ -41,24 +41,12 @@ const OrderRow = ({ row, index, onUpdate, onRemove, showRemove }) => {
       <div className="order-row-qty">
         <label className="field-label">Qty</label>
         <div className="qty-control">
-          <button
-            type="button"
-            className="qty-btn"
-            onClick={() => onUpdate(index, { ...row, qty: Math.max(1, row.qty - 1) })}
-          >−</button>
-          <input
-            type="number"
-            value={row.qty}
-            onChange={handleQtyChange}
-            min="1"
-            className="qty-input"
-            required
-          />
-          <button
-            type="button"
-            className="qty-btn"
-            onClick={() => onUpdate(index, { ...row, qty: row.qty + 1 })}
-          >+</button>
+          <button type="button" className="qty-btn"
+            onClick={() => onUpdate(index, { ...row, qty: Math.max(1, row.qty - 1) })}>−</button>
+          <input type="number" value={row.qty} onChange={handleQtyChange}
+            min="1" className="qty-input" required />
+          <button type="button" className="qty-btn"
+            onClick={() => onUpdate(index, { ...row, qty: row.qty + 1 })}>+</button>
         </div>
       </div>
 
@@ -74,6 +62,203 @@ const OrderRow = ({ row, index, onUpdate, onRemove, showRemove }) => {
   );
 };
 
+// ─────────────────────────────────────────────
+// Login form
+// ─────────────────────────────────────────────
+const LoginForm = ({ onLoginSuccess, onGoToRegister }) => {
+  const [credentials, setCredentials] = useState({ username: '', password: '' });
+  const [error,       setError]       = useState('');
+  const [loading,     setLoading]     = useState(false);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_BASE}/auth/login`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(credentials),
+      });
+
+      if (response.ok) {
+        const user = await response.json();
+        localStorage.setItem('userId',     user.id);
+        localStorage.setItem('businessId', user.business ?? '');
+        localStorage.setItem('userRole',   user.role);
+        onLoginSuccess(user);
+      } else {
+        setError('Invalid username or password.');
+      }
+    } catch {
+      setError('Cannot reach server. Is the backend running?');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="order-page">
+      <div className="order-container">
+        <div className="order-header">
+          <span className="section-eyebrow">Welcome Back</span>
+          <h1 className="order-title">Sign In to Order</h1>
+          <p className="order-sub">Log in with your business account to place an order.</p>
+        </div>
+
+        <div className="order-card" style={{ maxWidth: 400, margin: '0 auto' }}>
+          <form onSubmit={handleLogin}>
+            <div className="field-group">
+              <label className="field-label">Username</label>
+              <input type="text" className="input-field" placeholder="Your username"
+                value={credentials.username}
+                onChange={(e) => setCredentials(p => ({ ...p, username: e.target.value }))}
+                required />
+            </div>
+            <div className="field-group" style={{ marginTop: 16 }}>
+              <label className="field-label">Password</label>
+              <input type="password" className="input-field" placeholder="Your password"
+                value={credentials.password}
+                onChange={(e) => setCredentials(p => ({ ...p, password: e.target.value }))}
+                required />
+            </div>
+
+            {error && <p className="error-msg" style={{ marginTop: 12 }}>{error}</p>}
+
+            <button type="submit" className="btn-primary"
+              style={{ marginTop: 20, width: '100%' }} disabled={loading}>
+              {loading ? '⏳ Signing in...' : 'Sign In →'}
+            </button>
+          </form>
+
+          <p style={{ textAlign: 'center', marginTop: 16, fontSize: 14, color: '#888' }}>
+            New business?{' '}
+            <button onClick={onGoToRegister}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary, #e91e8c)', fontWeight: 600 }}>
+              Register here
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// Register form
+// ─────────────────────────────────────────────
+const RegisterForm = ({ onRegisterSuccess, onGoToLogin }) => {
+  const [form,    setForm]    = useState({ username: '', password: '', business_name: '', phone: '', email: '', address: '' });
+  const [error,   setError]   = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_BASE}/auth/register`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(form),
+      });
+
+      if (response.ok) {
+        const user = await response.json();
+        localStorage.setItem('userId',     user.id);
+        localStorage.setItem('businessId', user.business ?? '');
+        localStorage.setItem('userRole',   user.role);
+        onRegisterSuccess(user);
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Registration failed. Please try again.');
+      }
+    } catch {
+      setError('Cannot reach server. Is the backend running?');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const update = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
+
+  return (
+    <div className="order-page">
+      <div className="order-container">
+        <div className="order-header">
+          <span className="section-eyebrow">Get Started</span>
+          <h1 className="order-title">Register Your Business</h1>
+          <p className="order-sub">Create an account to start placing orders.</p>
+        </div>
+
+        <div className="order-card" style={{ maxWidth: 480, margin: '0 auto' }}>
+          <form onSubmit={handleRegister}>
+            <h3 className="card-title" style={{ marginBottom: 16 }}>🔐 Account Details</h3>
+
+            <div className="fields-grid">
+              <div className="field-group">
+                <label className="field-label">Username *</label>
+                <input type="text" className="input-field" placeholder="Choose a username"
+                  value={form.username} onChange={update('username')} required />
+              </div>
+              <div className="field-group">
+                <label className="field-label">Password *</label>
+                <input type="password" className="input-field" placeholder="Min. 8 characters"
+                  value={form.password} onChange={update('password')} minLength={8} required />
+              </div>
+            </div>
+
+            <h3 className="card-title" style={{ margin: '20px 0 16px' }}>🏢 Business Details</h3>
+
+            <div className="fields-grid">
+              <div className="field-group full-width">
+                <label className="field-label">Business Name *</label>
+                <input type="text" className="input-field" placeholder="Your business name"
+                  value={form.business_name} onChange={update('business_name')} required />
+              </div>
+              <div className="field-group">
+                <label className="field-label">Phone</label>
+                <input type="tel" className="input-field" placeholder="98XXXXXXXX"
+                  value={form.phone} onChange={update('phone')} />
+              </div>
+              <div className="field-group">
+                <label className="field-label">Email</label>
+                <input type="email" className="input-field" placeholder="business@email.com"
+                  value={form.email} onChange={update('email')} />
+              </div>
+              <div className="field-group full-width">
+                <label className="field-label">Address</label>
+                <input type="text" className="input-field" placeholder="Street, Ward, City"
+                  value={form.address} onChange={update('address')} />
+              </div>
+            </div>
+
+            {error && <p className="error-msg" style={{ marginTop: 12 }}>{error}</p>}
+
+            <button type="submit" className="btn-primary"
+              style={{ marginTop: 20, width: '100%' }} disabled={loading}>
+              {loading ? '⏳ Creating account...' : '✅ Create Account →'}
+            </button>
+          </form>
+
+          <p style={{ textAlign: 'center', marginTop: 16, fontSize: 14, color: '#888' }}>
+            Already have an account?{' '}
+            <button onClick={onGoToLogin}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary, #e91e8c)', fontWeight: 600 }}>
+              Sign in here
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// Order preview modal
+// ─────────────────────────────────────────────
 const PreviewModal = ({ isOpen, onClose, orderRows, customerInfo, total, onConfirm, loading }) => {
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
@@ -109,9 +294,7 @@ const PreviewModal = ({ isOpen, onClose, orderRows, customerInfo, total, onConfi
 
         <div className="modal-items">
           <div className="modal-items-header">
-            <span>Item</span>
-            <span>Qty × Price</span>
-            <span>Total</span>
+            <span>Item</span><span>Qty × Price</span><span>Total</span>
           </div>
           {orderRows.filter(r => r.flavour).map((row, i) => (
             <div key={i} className="modal-item-row">
@@ -127,11 +310,7 @@ const PreviewModal = ({ isOpen, onClose, orderRows, customerInfo, total, onConfi
           <span className="modal-total-value">रु{total.toFixed(2)}</span>
         </div>
 
-        <button
-          className="btn-confirm"
-          onClick={onConfirm}
-          disabled={loading}
-        >
+        <button className="btn-confirm" onClick={onConfirm} disabled={loading}>
           {loading ? '⏳ Placing Order...' : '✅ Confirm & Place Order'}
         </button>
       </div>
@@ -139,34 +318,60 @@ const PreviewModal = ({ isOpen, onClose, orderRows, customerInfo, total, onConfi
   );
 };
 
+// ─────────────────────────────────────────────
+// Main Order page
+// ─────────────────────────────────────────────
 const Order = () => {
+  const [currentUser,  setCurrentUser]  = useState(() => {
+    const userId     = localStorage.getItem('userId');
+    const businessId = localStorage.getItem('businessId');
+    const role       = localStorage.getItem('userRole');
+    return userId ? { id: userId, business: businessId, role } : null;
+  });
+
+  const [authScreen,   setAuthScreen]   = useState('login'); // 'login' | 'register'
   const [customerInfo, setCustomerInfo] = useState({ name: '', phone: '', address: '' });
-  const [orderRows, setOrderRows] = useState([{ flavour: '', qty: 1, price: 0 }]);
-  const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [successMsg, setSuccessMsg] = useState('');
-  const [errors, setErrors] = useState({});
+  const [orderRows,    setOrderRows]    = useState([{ flavour: '', qty: 1, price: 0 }]);
+  const [showModal,    setShowModal]    = useState(false);
+  const [loading,      setLoading]      = useState(false);
+  const [successMsg,   setSuccessMsg]   = useState('');
+  const [errors,       setErrors]       = useState({});
 
   const total = orderRows.reduce((sum, row) => sum + (row.price * row.qty), 0);
 
-  const updateRow = (index, updated) => {
+  // Show auth screens if not logged in
+  if (!currentUser) {
+    if (authScreen === 'register') {
+      return (
+        <RegisterForm
+          onRegisterSuccess={setCurrentUser}
+          onGoToLogin={() => setAuthScreen('login')}
+        />
+      );
+    }
+    return (
+      <LoginForm
+        onLoginSuccess={setCurrentUser}
+        onGoToRegister={() => setAuthScreen('register')}
+      />
+    );
+  }
+
+  const updateRow = (index, updated) =>
     setOrderRows(prev => prev.map((r, i) => i === index ? updated : r));
-  };
 
-  const removeRow = (index) => {
+  const removeRow = (index) =>
     setOrderRows(prev => prev.filter((_, i) => i !== index));
-  };
 
-  const addRow = () => {
+  const addRow = () =>
     setOrderRows(prev => [...prev, { flavour: '', qty: 1, price: 0 }]);
-  };
 
   const validate = () => {
     const e = {};
-    if (!customerInfo.name.trim()) e.name = 'Name is required';
-    if (!/^9[78][0-9]{8}$/.test(customerInfo.phone)) e.phone = 'Enter valid Nepali number (98XXXXXXXX)';
-    if (!customerInfo.address.trim()) e.address = 'Address is required';
-    if (!orderRows.some(r => r.flavour)) e.flavours = 'Select at least one flavour';
+    if (!customerInfo.name.trim())                    e.name     = 'Name is required';
+    if (!/^9[78][0-9]{8}$/.test(customerInfo.phone)) e.phone    = 'Enter valid Nepali number (98XXXXXXXX)';
+    if (!customerInfo.address.trim())                 e.address  = 'Address is required';
+    if (!orderRows.some(r => r.flavour))              e.flavours = 'Select at least one flavour';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -177,27 +382,19 @@ const Order = () => {
 
   const handlePlaceOrder = async () => {
     setLoading(true);
-    const items = orderRows.filter(r => r.flavour).map(r => ({
-      itemName: r.flavour,
-      quantity: r.qty,
-      price: r.price
-    }));
 
-    const orderData = {
-      businessId: localStorage.getItem('businessId'),
-      totalAmount: total,
-      status: 'Pending',
-      items,
-      customerName: customerInfo.name,
-      customerPhone: customerInfo.phone,
-      customerAddress: customerInfo.address,
+    const payload = {
+      business: currentUser.business,
+      items: orderRows
+        .filter(r => r.flavour)
+        .map(r => ({ item_name: r.flavour, quantity: r.qty, price: r.price })),
     };
 
     try {
-      const response = await fetch('http://localhost:8080/api/orders/place', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData),
+      const response = await fetch(`${API_BASE}/orders/place`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'X-User-Id': currentUser.id },
+        body:    JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -207,13 +404,22 @@ const Order = () => {
         setCustomerInfo({ name: '', phone: '', address: '' });
         setOrderRows([{ flavour: '', qty: 1, price: 0 }]);
       } else {
-        alert('Server error. Please try again.');
+        const errorData = await response.json();
+        alert(`Error: ${JSON.stringify(errorData)}`);
       }
     } catch {
       alert('Cannot reach server. Is the backend running?');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('userId');
+    localStorage.removeItem('businessId');
+    localStorage.removeItem('userRole');
+    setCurrentUser(null);
+    setAuthScreen('login');
   };
 
   if (successMsg) {
@@ -238,76 +444,57 @@ const Order = () => {
           <span className="section-eyebrow">Place Order</span>
           <h1 className="order-title">What would you like?</h1>
           <p className="order-sub">Fill in your details and pick your flavours</p>
+          <button onClick={handleLogout}
+            style={{ marginTop: 8, fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}>
+            Not you? Sign out
+          </button>
         </div>
 
         <div className="order-layout">
-          {/* Customer Info */}
           <div className="order-card">
             <h3 className="card-title">📋 Your Details</h3>
             <div className="fields-grid">
               <div className="field-group">
                 <label className="field-label">Full Name *</label>
-                <input
-                  type="text"
-                  className={`input-field${errors.name ? ' error' : ''}`}
-                  placeholder="e.g. Ramesh Sharma"
-                  value={customerInfo.name}
-                  onChange={(e) => setCustomerInfo(p => ({ ...p, name: e.target.value }))}
-                />
+                <input type="text" className={`input-field${errors.name ? ' error' : ''}`}
+                  placeholder="e.g. Ramesh Sharma" value={customerInfo.name}
+                  onChange={(e) => setCustomerInfo(p => ({ ...p, name: e.target.value }))} />
                 {errors.name && <span className="error-msg">{errors.name}</span>}
               </div>
 
               <div className="field-group">
                 <label className="field-label">Phone Number *</label>
-                <input
-                  type="tel"
-                  className={`input-field${errors.phone ? ' error' : ''}`}
-                  placeholder="98XXXXXXXX"
-                  value={customerInfo.phone}
-                  onChange={(e) => setCustomerInfo(p => ({ ...p, phone: e.target.value }))}
-                />
+                <input type="tel" className={`input-field${errors.phone ? ' error' : ''}`}
+                  placeholder="98XXXXXXXX" value={customerInfo.phone}
+                  onChange={(e) => setCustomerInfo(p => ({ ...p, phone: e.target.value }))} />
                 {errors.phone && <span className="error-msg">{errors.phone}</span>}
               </div>
 
               <div className="field-group full-width">
                 <label className="field-label">Delivery Address *</label>
-                <input
-                  type="text"
-                  className={`input-field${errors.address ? ' error' : ''}`}
-                  placeholder="Street, Ward, City"
-                  value={customerInfo.address}
-                  onChange={(e) => setCustomerInfo(p => ({ ...p, address: e.target.value }))}
-                />
+                <input type="text" className={`input-field${errors.address ? ' error' : ''}`}
+                  placeholder="Street, Ward, City" value={customerInfo.address}
+                  onChange={(e) => setCustomerInfo(p => ({ ...p, address: e.target.value }))} />
                 {errors.address && <span className="error-msg">{errors.address}</span>}
               </div>
             </div>
           </div>
 
-          {/* Flavour Selection */}
           <div className="order-card">
             <h3 className="card-title">🍦 Your Flavours</h3>
             {errors.flavours && <p className="error-msg">{errors.flavours}</p>}
-
             <div className="order-rows">
               {orderRows.map((row, i) => (
-                <OrderRow
-                  key={i}
-                  row={row}
-                  index={i}
-                  onUpdate={updateRow}
-                  onRemove={removeRow}
-                  showRemove={orderRows.length > 1}
-                />
+                <OrderRow key={i} row={row} index={i} onUpdate={updateRow}
+                  onRemove={removeRow} showRemove={orderRows.length > 1} />
               ))}
             </div>
-
             <button type="button" className="add-flavour-btn" onClick={addRow}>
               + Add Another Flavour
             </button>
           </div>
         </div>
 
-        {/* Bottom Bar */}
         <div className="order-bottom-bar">
           <div className="order-total">
             <span className="total-label">Total</span>
