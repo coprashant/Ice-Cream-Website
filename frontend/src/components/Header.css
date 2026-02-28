@@ -148,6 +148,29 @@
   box-shadow: 0 6px 20px var(--shadow-accent-hover);
 }
 
+/* Dashboard button (visible when logged in) */
+.desktop-dashboard-btn {
+  background: var(--hover-bg);
+  border: 1px solid var(--border-color);
+  height: 42px; 
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.desktop-dashboard-btn.active {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+.desktop-dashboard-btn:hover {
+  border-color: var(--accent-primary);
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+}
 /* ─────────────────────────────────────────────
    User Dropdown
 ───────────────────────────────────────────── */
@@ -439,6 +462,7 @@
 ───────────────────────────────────────────── */
 .mobile-auth-section { display: none; }
 .desktop-auth        { display: flex; }
+.desktop-hide        { display: none !important;}
 
 @media (max-width: 768px) {
   .header {
@@ -481,6 +505,14 @@
     border-top: 1px solid var(--border-color);
     padding-top: 8px;
     margin-top: 4px;
+  }
+
+  .desktop-hide {
+    display: flex !important;
+  }
+
+  .desktop-dashboard-btn {
+    display: none !important;
   }
 
   .nav-logout  { color: #e53935 !important; }

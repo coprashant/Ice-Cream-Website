@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import '../pages/dashboard/Dashboard';
 import './Header.css';
 
 const API_BASE = 'http://localhost:8000/api';
@@ -209,7 +210,7 @@ const UserDropdown = ({ currentUser, onNavigate, onLogout }) => {
 
       {open && (
         <div className="user-dropdown-menu">
-          <button onClick={() => { onNavigate('dashboard'); setOpen(false); }}>
+          <button className="desktop-hide" onClick={() => { onNavigate('dashboard'); setOpen(false); }}>
             📊 Dashboard
           </button>
           <button onClick={() => { onNavigate('order'); setOpen(false); }}>
@@ -303,6 +304,17 @@ const Header = ({ activePage, setActivePage, currentUser, onLogin, onLogout }) =
           <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
             {isDark ? '☀️' : '🌙'}
           </button>
+
+          {/*Dashboard button for desktop only */}
+          {currentUser && (
+            <button 
+              className={`nav-btn desktop-dashboard-btn${activePage === 'dashboard' ? ' active' : ''}`}
+              onClick={() => navTo('dashboard')}
+            >
+              <span className="nav-icon">📊</span>
+              DASHBOARD
+            </button>
+          )}
 
           {/* Desktop auth */}
           <div className="desktop-auth">
