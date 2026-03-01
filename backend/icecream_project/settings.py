@@ -1,5 +1,6 @@
 from pathlib import Path
 from dotenv import load_dotenv
+from corsheaders.defaults import default_headers
 import os
 
 load_dotenv()
@@ -82,3 +83,7 @@ USE_TZ        = True
 STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "x-user-id",
+]
