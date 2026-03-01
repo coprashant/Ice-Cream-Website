@@ -1,121 +1,168 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './Dashboard.css';
 
 const API_BASE = 'http://localhost:8000/api';
+
+// ─────────────────────────────────────────────
+// Skeleton
+// ─────────────────────────────────────────────
+const DashboardSkeleton = () => (
+  <div className="dashboard-container">
+    <div style={{ marginBottom: '32px' }}>
+      <div className="skeleton" style={{ width: '120px', height: '14px', marginBottom: '8px' }} />
+      <div className="skeleton" style={{ width: '260px', height: '36px', marginBottom: '6px' }} />
+      <div className="skeleton" style={{ width: '160px', height: '18px' }} />
+    </div>
+    <div className="skeleton-stats">
+      {[1,2,3,4].map(i => <div key={i} className="skeleton skeleton-card" />)}
+    </div>
+    <div className="skeleton" style={{ width: '300px', height: '44px', borderRadius: '14px', marginBottom: '24px' }} />
+    <div className="skeleton-content-grid">
+      <div className="skeleton skeleton-block" />
+      <div className="skeleton skeleton-block" />
+    </div>
+  </div>
+);
+
+// ─────────────────────────────────────────────
+// First-login welcome banner
+// ─────────────────────────────────────────────
+const WelcomeBanner = ({ name, onDismiss }) => (
+  <div className="welcome-banner">
+    <div className="welcome-banner-left">
+      <span className="welcome-banner-icon">🎉</span>
+      <div>
+        <p className="welcome-banner-title">
+          Welcome to your dashboard{name ? `, ${name}` : ''}!
+        </p>
+        <p className="welcome-banner-sub">
+          Place orders, track their status, and manage your business profile — all from here.
+        </p>
+      </div>
+    </div>
+    <button className="welcome-banner-dismiss" onClick={onDismiss} aria-label="Dismiss">✕</button>
+  </div>
+);
+
+// ─────────────────────────────────────────────
+// Status stepper
+// ─────────────────────────────────────────────
+const STATUS_STEPS = ['Pending', 'Confirmed', 'Completed'];
+const STEP_LABELS  = { Pending: 'Received', Confirmed: 'Confirmed', Completed: 'Delivered' };
+const STEP_ICONS   = { Pending: '📥', Confirmed: '✅', Completed: '🎉' };
+
+const StatusStepper = ({ status }) => {
+  if (status === 'Cancelled') {
+    return (
+      <div className="status-cancelled-bar">
+        <span>❌</span>
+        <span className="cancelled-label">Order Cancelled</span>
+      </div>
+    );
+  }
+  const currentIndex = STATUS_STEPS.indexOf(status);
+  return (
+    <div className="status-stepper">
+      {STATUS_STEPS.map((step, i) => {
+        const isDone   = i < currentIndex;
+        const isActive = i === currentIndex;
+        return (
+          <React.Fragment key={step}>
+            <div className={`step ${isDone ? 'done' : isActive ? 'active' : 'pending'}`}>
+              <div className="step-bubble">{isDone ? '✓' : STEP_ICONS[step]}</div>
+              <span className="step-label">{STEP_LABELS[step]}</span>
+            </div>
+            {i < STATUS_STEPS.length - 1 && (
+              <div className={`step-connector${isDone ? ' done' : ''}`} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
 
 // ─────────────────────────────────────────────
 // Status badge
 // ─────────────────────────────────────────────
 const StatusBadge = ({ status }) => {
   const map = {
-    Pending:   { color: 'badge-pending',   icon: '⏳' },
-    Confirmed: { color: 'badge-confirmed', icon: '✅' },
-    Completed: { color: 'badge-completed', icon: '🎉' },
-    Cancelled: { color: 'badge-cancelled', icon: '❌' },
+    Pending:   { cls: 'badge-pending',   icon: '⏳' },
+    Confirmed: { cls: 'badge-confirmed', icon: '✅' },
+    Completed: { cls: 'badge-completed', icon: '🎉' },
+    Cancelled: { cls: 'badge-cancelled', icon: '❌' },
   };
-  const { color, icon } = map[status] || { color: '', icon: '•' };
-  return (
-    <span className={`status-badge ${color}`}>
-      {icon} {status}
-    </span>
-  );
+  const { cls, icon } = map[status] || { cls: '', icon: '•' };
+  return <span className={`status-badge ${cls}`}>{icon} {status}</span>;
 };
 
 // ─────────────────────────────────────────────
-// Edit Profile Modal
+// Quick Reorder widget
 // ─────────────────────────────────────────────
-const EditProfileModal = ({ business, userId, onClose, onSave }) => {
-  const [form,    setForm]    = useState({
-    name:           business?.name           || '',
-    contact_person: business?.contact_person || '',
-    phone:          business?.phone          || '',
-    email:          business?.email          || '',
-    address:        business?.address        || '',
-  });
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState('');
+const QuickReorderWidget = ({ orders, onReorder }) => {
+  const lastOrder = orders.find(o => o.status !== 'Cancelled');
 
-  const update = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
+  const topItems = useMemo(() => {
+    const tally = {};
+    orders.forEach(o =>
+      o.items.forEach(item => {
+        tally[item.item_name] = (tally[item.item_name] || 0) + item.quantity;
+      })
+    );
+    return Object.entries(tally)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([name, qty]) => ({ name, qty }));
+  }, [orders]);
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const res  = await fetch(`${API_BASE}/auth/me/update`, {
-        method:  'PATCH',
-        headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
-        body:    JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        onSave(data);
-        onClose();
-      } else {
-        setError(data.error || 'Update failed.');
-      }
-    } catch {
-      setError('Cannot reach server.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (!lastOrder && topItems.length === 0) return null;
 
   return (
-    <div className="dash-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="dash-modal">
-        <button className="dash-modal-close" onClick={onClose}>✕</button>
-        <h2 className="dash-modal-title">✏️ Edit Business Profile</h2>
-
-        <form onSubmit={handleSave} className="edit-form">
-          <div className="edit-grid">
-            <div className="edit-field full">
-              <label>Business Name *</label>
-              <input type="text" required value={form.name} onChange={update('name')}
-                placeholder="Your business name" />
+    <div className="quick-reorder-widget">
+      <p className="quick-reorder-title">⚡ Quick Reorder</p>
+      <div className="quick-reorder-body">
+        {lastOrder && (
+          <div className="quick-card">
+            <p className="quick-card-label">Last Order</p>
+            <p className="quick-card-id">#{lastOrder.id}</p>
+            <div className="quick-card-chips">
+              {lastOrder.items.slice(0, 2).map((item, i) => (
+                <span key={i} className="quick-chip">{item.item_name}</span>
+              ))}
+              {lastOrder.items.length > 2 && (
+                <span className="quick-chip muted">+{lastOrder.items.length - 2} more</span>
+              )}
             </div>
-            <div className="edit-field">
-              <label>Contact Person</label>
-              <input type="text" value={form.contact_person} onChange={update('contact_person')}
-                placeholder="Your full name" />
-            </div>
-            <div className="edit-field">
-              <label>Phone</label>
-              <input type="tel" value={form.phone} onChange={update('phone')}
-                placeholder="98XXXXXXXX" />
-            </div>
-            <div className="edit-field">
-              <label>Email</label>
-              <input type="email" value={form.email} onChange={update('email')}
-                placeholder="business@email.com" />
-            </div>
-            <div className="edit-field">
-              <label>Address</label>
-              <input type="text" value={form.address} onChange={update('address')}
-                placeholder="Street, Ward, City" />
-            </div>
-          </div>
-
-          {error && <p className="edit-error">{error}</p>}
-
-          <div className="edit-actions">
-            <button type="button" className="btn-ghost-dash" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn-save" disabled={loading}>
-              {loading ? '⏳ Saving...' : '💾 Save Changes'}
+            <p className="quick-card-total">रु{parseFloat(lastOrder.total_amount).toFixed(2)}</p>
+            <button className="btn-quick-reorder" onClick={() => onReorder(lastOrder)}>
+              🔄 Reorder
             </button>
           </div>
-        </form>
+        )}
+        {topItems.length > 0 && (
+          <div className="quick-card">
+            <p className="quick-card-label">Your Favourites</p>
+            <div className="top-items-list">
+              {topItems.map((item, i) => (
+                <div key={i} className="top-item-row">
+                  <span className="top-item-rank">#{i + 1}</span>
+                  <span className="top-item-name">{item.name}</span>
+                  <span className="top-item-count">{item.qty} ordered</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 // ─────────────────────────────────────────────
-// Order History Card
+// Order card (Orders tab)
 // ─────────────────────────────────────────────
 const OrderCard = ({ order, onReorder }) => {
   const [expanded, setExpanded] = useState(false);
-
   return (
     <div className="order-hist-card">
       <div className="order-hist-header" onClick={() => setExpanded(e => !e)}>
@@ -123,7 +170,7 @@ const OrderCard = ({ order, onReorder }) => {
           <span className="order-hist-id">Order #{order.id}</span>
           <span className="order-hist-date">
             {new Date(order.order_date).toLocaleDateString('en-NP', {
-              day: 'numeric', month: 'short', year: 'numeric'
+              day: 'numeric', month: 'short', year: 'numeric',
             })}
           </span>
         </div>
@@ -138,6 +185,7 @@ const OrderCard = ({ order, onReorder }) => {
 
       {expanded && (
         <div className="order-hist-body">
+          <StatusStepper status={order.status} />
           <div className="order-items-list">
             {order.items.map((item, i) => (
               <div key={i} className="order-hist-item">
@@ -160,131 +208,155 @@ const OrderCard = ({ order, onReorder }) => {
 };
 
 // ─────────────────────────────────────────────
+// Spending trend helper
+// ─────────────────────────────────────────────
+const getSpendingTrend = (orders) => {
+  const now       = new Date();
+  const thisMonth = now.getMonth(), thisYear = now.getFullYear();
+  const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
+  const lastYear  = thisMonth === 0 ? thisYear - 1 : thisYear;
+
+  const sum = (m, y) => orders
+    .filter(o => { const d = new Date(o.order_date); return d.getMonth() === m && d.getFullYear() === y; })
+    .reduce((s, o) => s + parseFloat(o.total_amount), 0);
+
+  const thisSpend = sum(thisMonth, thisYear);
+  const lastSpend = sum(lastMonth, lastYear);
+  if (!thisSpend && !lastSpend) return null;
+
+  const diff = thisSpend - lastSpend;
+  const pct  = lastSpend ? Math.abs(Math.round((diff / lastSpend) * 100)) : null;
+  return { pct, up: diff >= 0 };
+};
+
+// ─────────────────────────────────────────────
 // Dashboard
 // ─────────────────────────────────────────────
-const Dashboard = ({ currentUser, setActivePage, onLogout }) => {
-  const [profile,     setProfile]     = useState(null);
-  const [orders,      setOrders]      = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [showEdit,    setShowEdit]    = useState(false);
-  const [reorderMsg,  setReorderMsg]  = useState('');
-  const [activeTab,   setActiveTab]   = useState('overview');
+const Dashboard = ({ currentUser, setActivePage, onLogout, onProfileUpdate }) => {
+  const [profile,      setProfile]      = useState(null);
+  const [orders,       setOrders]       = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [reorderMsg,   setReorderMsg]   = useState('');
+  const [activeTab,    setActiveTab]    = useState('overview');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [showWelcome,  setShowWelcome]  = useState(false);
 
   const headers = { 'X-User-Id': currentUser.id };
 
-  // Load profile and orders together
+  // Show welcome banner only on first-ever login per user
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const [meRes, ordersRes] = await Promise.all([
-          fetch(`${API_BASE}/auth/me`,           { headers }),
-          fetch(`${API_BASE}/orders/my-orders`,  { headers }),
-        ]);
-        const [meData, ordersData] = await Promise.all([meRes.json(), ordersRes.json()]);
-        setProfile(meData);
-        setOrders(ordersData);
-      } catch {
-        // silently fail — show empty state
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
+    const key = `welcomed_${currentUser.id}`;
+    if (!localStorage.getItem(key)) setShowWelcome(true);
   }, [currentUser.id]);
 
-  const handleProfileSave = (updatedUser) => {
-    setProfile(updatedUser);
+  const dismissWelcome = () => {
+    localStorage.setItem(`welcomed_${currentUser.id}`, '1');
+    setShowWelcome(false);
   };
 
-  const handleReorder = async (order) => {
-    const payload = {
-      business: currentUser.business,
-      items:    order.items.map(i => ({
-        item_name: i.item_name,
-        quantity:  i.quantity,
-        price:     parseFloat(i.price),
-      })),
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [meRes, ordRes] = await Promise.all([
+          fetch(`${API_BASE}/auth/me`,          { headers }),
+          fetch(`${API_BASE}/orders/my-orders`, { headers }),
+        ]);
+        const [me, ord] = await Promise.all([meRes.json(), ordRes.json()]);
+        setProfile(me);
+        setOrders(ord);
+      } catch { /* show empty state */ }
+      finally  { setLoading(false); }
     };
+    load();
+  }, [currentUser.id]);
 
+  const handleReorder = async (order) => {
     try {
       const res = await fetch(`${API_BASE}/orders/place`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'X-User-Id': currentUser.id },
-        body:    JSON.stringify(payload),
+        body: JSON.stringify({
+          business: currentUser.business,
+          items: order.items.map(i => ({
+            item_name: i.item_name, quantity: i.quantity, price: parseFloat(i.price),
+          })),
+        }),
       });
-
       if (res.ok) {
         const newOrder = await res.json();
         setOrders(prev => [newOrder, ...prev]);
         setReorderMsg(`✅ Reorder placed! Order #${newOrder.id}`);
         setTimeout(() => setReorderMsg(''), 4000);
-      } else {
-        alert('Reorder failed. Please try again.');
-      }
-    } catch {
-      alert('Cannot reach server.');
-    }
+      } else { alert('Reorder failed.'); }
+    } catch { alert('Cannot reach server.'); }
   };
 
-  const business = profile?.business_details;
-
-  // Stats derived from orders
+  const business       = profile?.business_details;
   const totalOrders    = orders.length;
   const totalSpent     = orders.reduce((s, o) => s + parseFloat(o.total_amount), 0);
   const pendingCount   = orders.filter(o => o.status === 'Pending').length;
   const completedCount = orders.filter(o => o.status === 'Completed').length;
+  const trend          = useMemo(() => getSpendingTrend(orders), [orders]);
 
-  if (loading) {
-    return (
-      <div className="dashboard-page">
-        <div className="dash-loading">
-          <div className="dash-spinner">🍦</div>
-          <p>Loading your dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const filterCounts = useMemo(() => ({
+    All:       orders.length,
+    Pending:   orders.filter(o => o.status === 'Pending').length,
+    Confirmed: orders.filter(o => o.status === 'Confirmed').length,
+    Completed: orders.filter(o => o.status === 'Completed').length,
+    Cancelled: orders.filter(o => o.status === 'Cancelled').length,
+  }), [orders]);
+
+  const filteredOrders = filterStatus === 'All'
+    ? orders
+    : orders.filter(o => o.status === filterStatus);
+
+  if (loading) return <div className="dashboard-page"><DashboardSkeleton /></div>;
 
   return (
     <div className="dashboard-page">
       <div className="dashboard-container">
 
-        {/* Header */}
+        {/* First-login welcome */}
+        {showWelcome && (
+          <WelcomeBanner
+            name={business?.contact_person || currentUser.username}
+            onDismiss={dismissWelcome}
+          />
+        )}
+
+        {/* Header — no action buttons, just name + business */}
         <div className="dash-header">
-          <div className="dash-header-left">
-            <span className="section-eyebrow">Welcome back</span>
-            <h1 className="dash-title">
-              {business?.contact_person || currentUser.username}
-            </h1>
-            <p className="dash-subtitle">{business?.name}</p>
-          </div>
-          <div className="dash-header-actions">
-            <button className="btn-place-order" onClick={() => setActivePage('order')}>
-              🛒 Place New Order
-            </button>
-          </div>
+          <span className="section-eyebrow">My Dashboard</span>
+          <h1 className="dash-title">
+            {business?.contact_person || currentUser.username}
+          </h1>
+          <p className="dash-subtitle">{business?.name}</p>
         </div>
 
         {/* Reorder success banner */}
-        {reorderMsg && (
-          <div className="reorder-banner">{reorderMsg}</div>
-        )}
+        {reorderMsg && <div className="reorder-banner">{reorderMsg}</div>}
 
-        {/* Stats */}
+        {/* Stats — accent on Total Spent */}
         <div className="stats-grid">
+          <div className="stat-card stat-card-accent">
+            <span className="stat-icon">💰</span>
+            <div>
+              <span className="stat-value">रु{totalSpent.toFixed(0)}</span>
+              <span className="stat-label">Total Spent</span>
+              {trend && (
+                <span className={`stat-trend ${trend.up ? 'trend-up' : 'trend-down'}`}>
+                  {trend.up ? '▲' : '▼'}{' '}
+                  {trend.pct !== null ? `${trend.pct}% vs last month` : 'this month'}
+                </span>
+              )}
+            </div>
+          </div>
           <div className="stat-card">
             <span className="stat-icon">📦</span>
             <div>
               <span className="stat-value">{totalOrders}</span>
               <span className="stat-label">Total Orders</span>
-            </div>
-          </div>
-          <div className="stat-card">
-            <span className="stat-icon">💰</span>
-            <div>
-              <span className="stat-value">रु{totalSpent.toFixed(0)}</span>
-              <span className="stat-label">Total Spent</span>
             </div>
           </div>
           <div className="stat-card">
@@ -307,8 +379,8 @@ const Dashboard = ({ currentUser, setActivePage, onLogout }) => {
         <div className="dash-tabs">
           {[
             { id: 'overview', label: '📊 Overview' },
-            { id: 'orders',   label: '📦 Order History' },
-            { id: 'profile',  label: '🏢 Business Profile' },
+            { id: 'orders',   label: '📦 Orders' },
+            { id: 'profile',  label: '🏢 Profile' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -320,31 +392,32 @@ const Dashboard = ({ currentUser, setActivePage, onLogout }) => {
           ))}
         </div>
 
-        {/* Overview Tab */}
+        {/* ── Overview ── */}
         {activeTab === 'overview' && (
           <div className="tab-content">
-            <div className="overview-grid">
-              {/* Recent orders */}
-              <div className="dash-card">
-                <div className="dash-card-header">
-                  <h3>Recent Orders</h3>
-                  <button className="link-btn" onClick={() => setActiveTab('orders')}>
-                    View all →
-                  </button>
-                </div>
-                {orders.length === 0 ? (
-                  <div className="empty-state">
-                    <span>🍦</span>
-                    <p>No orders yet. Place your first order!</p>
-                    <button className="btn-place-order" onClick={() => setActivePage('order')}>
-                      Order Now
+            {orders.length === 0 ? (
+              <div className="dash-card overview-empty-card">
+                <span className="overview-empty-icon">🍦</span>
+                <h3>No orders yet</h3>
+                <p>Head to the Order page to place your first order.</p>
+                <button className="btn-primary-dash" onClick={() => setActivePage('order')}>
+                  Place Your First Order →
+                </button>
+              </div>
+            ) : (
+              <div className="overview-feed">
+                <QuickReorderWidget orders={orders} onReorder={handleReorder} />
+                <div className="dash-card">
+                  <div className="dash-card-header">
+                    <h3>Recent Orders</h3>
+                    <button className="link-btn" onClick={() => setActiveTab('orders')}>
+                      View all →
                     </button>
                   </div>
-                ) : (
                   <div className="recent-orders-list">
                     {orders.slice(0, 3).map(order => (
                       <div key={order.id} className="recent-order-row">
-                        <div>
+                        <div className="recent-order-info">
                           <span className="recent-order-id">#{order.id}</span>
                           <span className="recent-order-date">
                             {new Date(order.order_date).toLocaleDateString()}
@@ -359,50 +432,40 @@ const Dashboard = ({ currentUser, setActivePage, onLogout }) => {
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-
-              {/* Profile summary */}
-              <div className="dash-card">
-                <div className="dash-card-header">
-                  <h3>Business Profile</h3>
-                  <button className="link-btn" onClick={() => setShowEdit(true)}>
-                    Edit →
-                  </button>
-                </div>
-                <div className="profile-summary">
-                  {[
-                    { label: 'Business',  value: business?.name },
-                    { label: 'Contact',   value: business?.contact_person },
-                    { label: 'Phone',     value: business?.phone },
-                    { label: 'Email',     value: business?.email },
-                    { label: 'Address',   value: business?.address },
-                  ].map(({ label, value }) => (
-                    <div key={label} className="profile-row">
-                      <span className="profile-label">{label}</span>
-                      <span className="profile-value">{value || '—'}</span>
-                    </div>
-                  ))}
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
-        {/* Orders Tab */}
+        {/* ── Orders ── */}
         {activeTab === 'orders' && (
           <div className="tab-content">
-            {orders.length === 0 ? (
+            <div className="filter-bar">
+              {['All', 'Pending', 'Confirmed', 'Completed', 'Cancelled'].map(s => (
+                <button
+                  key={s}
+                  className={`filter-btn filter-${s.toLowerCase()}${filterStatus === s ? ' active' : ''}`}
+                  onClick={() => setFilterStatus(s)}
+                >
+                  {s}
+                  <span className="filter-count">{filterCounts[s]}</span>
+                </button>
+              ))}
+            </div>
+
+            {filteredOrders.length === 0 ? (
               <div className="empty-state large">
                 <span>📦</span>
-                <p>You haven't placed any orders yet.</p>
-                <button className="btn-place-order" onClick={() => setActivePage('order')}>
-                  Place Your First Order
-                </button>
+                <p>
+                  {filterStatus === 'All'
+                    ? "No orders yet."
+                    : `No ${filterStatus.toLowerCase()} orders.`}
+                </p>
               </div>
             ) : (
               <div className="orders-list">
-                {orders.map(order => (
+                {filteredOrders.map(order => (
                   <OrderCard key={order.id} order={order} onReorder={handleReorder} />
                 ))}
               </div>
@@ -410,26 +473,26 @@ const Dashboard = ({ currentUser, setActivePage, onLogout }) => {
           </div>
         )}
 
-        {/* Profile Tab */}
+        {/* ── Profile ── */}
         {activeTab === 'profile' && (
           <div className="tab-content">
             <div className="dash-card profile-card">
               <div className="dash-card-header">
                 <h3>🏢 Business Details</h3>
-                <button className="btn-edit-profile" onClick={() => setShowEdit(true)}>
-                  ✏️ Edit Profile
-                </button>
+                <p className="profile-edit-hint">
+                  Edit via <strong>👤 menu</strong> in the top bar
+                </p>
               </div>
               <div className="profile-detail-grid">
                 {[
-                  { label: 'Business Name',   value: business?.name,           icon: '🏢' },
-                  { label: 'Contact Person',  value: business?.contact_person, icon: '👤' },
-                  { label: 'Phone',           value: business?.phone,          icon: '📞' },
-                  { label: 'Email',           value: business?.email,          icon: '✉️' },
-                  { label: 'Address',         value: business?.address,        icon: '📍' },
-                  { label: 'Member Since',    value: business?.created_at
-                    ? new Date(business.created_at).toLocaleDateString()
-                    : '—',                                                      icon: '📅' },
+                  { label: 'Business Name',  value: business?.name,           icon: '🏢' },
+                  { label: 'Contact Person', value: business?.contact_person, icon: '👤' },
+                  { label: 'Phone',          value: business?.phone,          icon: '📞' },
+                  { label: 'Email',          value: business?.email,          icon: '✉️' },
+                  { label: 'Address',        value: business?.address,        icon: '📍' },
+                  { label: 'Member Since',   icon: '📅',
+                    value: business?.created_at
+                      ? new Date(business.created_at).toLocaleDateString() : '—' },
                 ].map(({ label, value, icon }) => (
                   <div key={label} className="profile-detail-item">
                     <span className="profile-detail-icon">{icon}</span>
@@ -445,16 +508,6 @@ const Dashboard = ({ currentUser, setActivePage, onLogout }) => {
         )}
 
       </div>
-
-      {/* Edit Profile Modal */}
-      {showEdit && (
-        <EditProfileModal
-          business={business}
-          userId={currentUser.id}
-          onClose={() => setShowEdit(false)}
-          onSave={handleProfileSave}
-        />
-      )}
     </div>
   );
 };

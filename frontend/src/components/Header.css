@@ -152,7 +152,7 @@
 .desktop-dashboard-btn {
   background: var(--hover-bg);
   border: 1px solid var(--border-color);
-  height: 42px; 
+  height: 42px;
   padding: 0 16px;
   display: flex;
   align-items: center;
@@ -166,11 +166,12 @@
   border-color: var(--accent-primary);
 }
 
-.desktop-dashboard-btn:hover {
+.desktop-dashboard-btn:hover:not(.active) {
   border-color: var(--accent-primary);
   background: var(--accent-soft);
   color: var(--accent-primary);
 }
+
 /* ─────────────────────────────────────────────
    User Dropdown
 ───────────────────────────────────────────── */
@@ -214,7 +215,7 @@
   border: 1px solid var(--border-color);
   border-radius: 16px;
   padding: 8px;
-  min-width: 180px;
+  min-width: 200px;
   box-shadow: 0 16px 48px var(--shadow-lg);
   animation: dropdownIn 0.18s ease;
   z-index: 100;
@@ -223,6 +224,23 @@
 @keyframes dropdownIn {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: none; }
+}
+
+/* Business name context row at top of dropdown */
+.dropdown-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 10px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 4px;
+}
+
+.dropdown-context-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem; font-weight: 600;
+  color: var(--text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 .user-dropdown-menu button {
@@ -434,6 +452,44 @@
 }
 
 /* ─────────────────────────────────────────────
+   Edit Profile Modal extras
+   (reuses .auth-overlay / .auth-modal / .auth-form / .auth-field above)
+───────────────────────────────────────────── */
+.edit-profile-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem; font-weight: 900;
+  color: var(--text-primary);
+  margin: 0 0 22px;
+}
+
+.edit-profile-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.edit-profile-cancel {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem; font-weight: 600;
+  color: var(--text-secondary);
+  background: none;
+  border: 1px solid var(--border-color);
+  padding: 13px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.edit-profile-cancel:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+/* Makes the submit fill the remaining space inside edit-profile-actions */
+.edit-profile-submit {
+  flex: 1;
+  margin-top: 0 !important;
+}
+
+/* ─────────────────────────────────────────────
    Hamburger
 ───────────────────────────────────────────── */
 .hamburger {
@@ -462,7 +518,7 @@
 ───────────────────────────────────────────── */
 .mobile-auth-section { display: none; }
 .desktop-auth        { display: flex; }
-.desktop-hide        { display: none !important;}
+.desktop-hide        { display: none !important; }
 
 @media (max-width: 768px) {
   .header {
@@ -470,8 +526,9 @@
     grid-template-columns: auto 1fr;
   }
 
-  .hamburger    { display: flex; }
-  .desktop-auth { display: none; }
+  .hamburger             { display: flex; }
+  .desktop-auth          { display: none; }
+  .desktop-dashboard-btn { display: none !important; }
 
   .nav-center {
     display: none;
@@ -507,16 +564,14 @@
     margin-top: 4px;
   }
 
-  .desktop-hide {
-    display: flex !important;
-  }
+  .desktop-hide { display: flex !important; }
 
-  .desktop-dashboard-btn {
-    display: none !important;
-  }
-
-  .nav-logout  { color: #e53935 !important; }
+  .nav-logout       { color: #e53935 !important; }
   .nav-logout:hover { background: rgba(229,57,53,0.08) !important; }
 
-  .auth-grid { grid-template-columns: 1fr; }
+  .auth-grid    { grid-template-columns: 1fr; }
+  .auth-modal   { padding: 24px 20px; }
+
+  .edit-profile-actions { flex-direction: column-reverse; }
+  .edit-profile-cancel  { text-align: center; }
 }

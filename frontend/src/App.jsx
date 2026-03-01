@@ -12,8 +12,6 @@ function AppContent() {
   const [activePage, setActivePage] = useState('home');
   const [pageKey,    setPageKey]    = useState(0);
 
-  // currentUser is lifted here so Header, Footer, Order, and Dashboard
-  // all share the same auth state without prop drilling through unrelated components.
   const [currentUser, setCurrentUser] = useState(() => {
     const userId     = localStorage.getItem('userId');
     const businessId = localStorage.getItem('businessId');
@@ -42,14 +40,25 @@ function AppContent() {
     navigate('home');
   };
 
+  // Called when Edit Profile is saved from the Header dropdown.
+  // Updates currentUser in App state so the dropdown name refreshes immediately.
+  const handleProfileUpdate = (updatedUser) => {
+    setCurrentUser(updatedUser);
+  };
+
   const renderPage = () => {
     switch (activePage) {
       case 'home':      return <Home setActivePage={navigate} />;
       case 'order':     return <Order currentUser={currentUser} />;
       case 'contact':   return <Contact />;
       case 'dashboard': return currentUser
-                          ? <Dashboard currentUser={currentUser} setActivePage={navigate} onLogout={handleLogout} />
-                          : <Home setActivePage={navigate} />;
+        ? <Dashboard
+            currentUser={currentUser}
+            setActivePage={navigate}
+            onLogout={handleLogout}
+            onProfileUpdate={handleProfileUpdate}
+          />
+        : <Home setActivePage={navigate} />;
       default:          return <Home setActivePage={navigate} />;
     }
   };
@@ -62,6 +71,7 @@ function AppContent() {
         currentUser={currentUser}
         onLogin={handleLogin}
         onLogout={handleLogout}
+        onProfileUpdate={handleProfileUpdate}
       />
       <main key={pageKey} className="page-enter page-enter-active">
         {renderPage()}

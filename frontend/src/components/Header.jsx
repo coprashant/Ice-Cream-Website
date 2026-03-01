@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
-import '../pages/dashboard/Dashboard';
 import './Header.css';
 
 const API_BASE = 'http://localhost:8000/api';
@@ -20,7 +19,6 @@ const AuthModal = ({ onClose, onLogin }) => {
 
   const overlayRef = useRef(null);
 
-  // Close on backdrop click
   const handleOverlayClick = (e) => {
     if (e.target === overlayRef.current) onClose();
   };
@@ -80,7 +78,6 @@ const AuthModal = ({ onClose, onLogin }) => {
       <div className="auth-modal">
         <button className="auth-modal-close" onClick={onClose}>✕</button>
 
-        {/* Tabs */}
         <div className="auth-tabs">
           <button
             className={`auth-tab${screen === 'login' ? ' active' : ''}`}
@@ -92,7 +89,6 @@ const AuthModal = ({ onClose, onLogin }) => {
           >Register</button>
         </div>
 
-        {/* Login */}
         {screen === 'login' && (
           <form className="auth-form" onSubmit={handleLogin}>
             <div className="auth-field">
@@ -120,7 +116,6 @@ const AuthModal = ({ onClose, onLogin }) => {
           </form>
         )}
 
-        {/* Register */}
         {screen === 'register' && (
           <form className="auth-form" onSubmit={handleRegister}>
             <p className="auth-section-label">Account</p>
@@ -184,21 +179,115 @@ const AuthModal = ({ onClose, onLogin }) => {
 };
 
 // ─────────────────────────────────────────────
+// Edit Profile Modal
+// Reuses the same auth-overlay/auth-modal CSS — no new classes needed.
+// ─────────────────────────────────────────────
+const EditProfileModal = ({ currentUser, onClose, onSave }) => {
+  const biz = currentUser?.business_details;
+  const [form,    setForm]    = useState({
+    name:           biz?.name           || '',
+    contact_person: biz?.contact_person || '',
+    phone:          biz?.phone          || '',
+    email:          biz?.email          || '',
+    address:        biz?.address        || '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState('');
+  const overlayRef = useRef(null);
+
+  const update = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res  = await fetch(`${API_BASE}/auth/me/update`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-User-Id': currentUser.id },
+        body:    JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (res.ok) { onSave(data); onClose(); }
+      else setError(data.error || 'Update failed.');
+    } catch {
+      setError('Cannot reach server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="auth-overlay"
+      ref={overlayRef}
+      onClick={(e) => e.target === overlayRef.current && onClose()}
+    >
+      <div className="auth-modal">
+        <button className="auth-modal-close" onClick={onClose}>✕</button>
+
+        <h2 className="edit-profile-title">✏️ Edit Business Profile</h2>
+
+        <form className="auth-form" onSubmit={handleSave}>
+          <div className="auth-field">
+            <label>Business Name *</label>
+            <input type="text" required value={form.name} onChange={update('name')}
+              placeholder="Your business name" />
+          </div>
+          <div className="auth-grid">
+            <div className="auth-field">
+              <label>Contact Person</label>
+              <input type="text" value={form.contact_person} onChange={update('contact_person')}
+                placeholder="Your full name" />
+            </div>
+            <div className="auth-field">
+              <label>Phone</label>
+              <input type="tel" value={form.phone} onChange={update('phone')}
+                placeholder="98XXXXXXXX" />
+            </div>
+            <div className="auth-field">
+              <label>Email</label>
+              <input type="email" value={form.email} onChange={update('email')}
+                placeholder="business@email.com" />
+            </div>
+            <div className="auth-field">
+              <label>Address</label>
+              <input type="text" value={form.address} onChange={update('address')}
+                placeholder="Street, Ward, City" />
+            </div>
+          </div>
+
+          {error && <p className="auth-error">{error}</p>}
+
+          <div className="edit-profile-actions">
+            <button type="button" className="edit-profile-cancel" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="auth-submit edit-profile-submit" disabled={loading}>
+              {loading ? '⏳ Saving...' : '💾 Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
 // User dropdown (shown when logged in)
 // ─────────────────────────────────────────────
-const UserDropdown = ({ currentUser, onNavigate, onLogout }) => {
+const UserDropdown = ({ currentUser, onNavigate, onLogout, onEditProfile }) => {
   const [open, setOpen] = useState(false);
   const ref             = useRef(null);
 
-  // Close when clicking outside
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const label = currentUser.business_details?.contact_person
-    || currentUser.username;
+  const label = currentUser.business_details?.contact_person || currentUser.username;
+  const go    = (fn) => () => { fn(); setOpen(false); };
 
   return (
     <div className="user-dropdown-wrap" ref={ref}>
@@ -210,14 +299,32 @@ const UserDropdown = ({ currentUser, onNavigate, onLogout }) => {
 
       {open && (
         <div className="user-dropdown-menu">
-          <button className="desktop-hide" onClick={() => { onNavigate('dashboard'); setOpen(false); }}>
+          {/* Business name context row */}
+          {currentUser.business_details?.name && (
+            <div className="dropdown-context">
+              <span>🏢</span>
+              <span className="dropdown-context-label">
+                {currentUser.business_details.name}
+              </span>
+            </div>
+          )}
+
+          {/* Dashboard — only shown in dropdown on mobile (desktop has dedicated button) */}
+          <button className="desktop-hide" onClick={go(() => onNavigate('dashboard'))}>
             📊 Dashboard
           </button>
-          <button onClick={() => { onNavigate('order'); setOpen(false); }}>
+
+          <button onClick={go(() => onNavigate('order'))}>
             🛒 Place Order
           </button>
+
+          <button onClick={go(onEditProfile)}>
+            ✏️ Edit Profile
+          </button>
+
           <div className="dropdown-divider" />
-          <button className="dropdown-logout" onClick={() => { onLogout(); setOpen(false); }}>
+
+          <button className="dropdown-logout" onClick={go(onLogout)}>
             🚪 Sign Out
           </button>
         </div>
@@ -229,11 +336,12 @@ const UserDropdown = ({ currentUser, onNavigate, onLogout }) => {
 // ─────────────────────────────────────────────
 // Header
 // ─────────────────────────────────────────────
-const Header = ({ activePage, setActivePage, currentUser, onLogin, onLogout }) => {
+const Header = ({ activePage, setActivePage, currentUser, onLogin, onLogout, onProfileUpdate }) => {
   const { isDark, toggleTheme } = useTheme();
-  const [scrolled,   setScrolled]   = useState(false);
-  const [menuOpen,   setMenuOpen]   = useState(false);
-  const [showAuth,   setShowAuth]   = useState(false);
+  const [scrolled,     setScrolled]     = useState(false);
+  const [menuOpen,     setMenuOpen]     = useState(false);
+  const [showAuth,     setShowAuth]     = useState(false);
+  const [showEditProf, setShowEditProf] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -287,6 +395,9 @@ const Header = ({ activePage, setActivePage, currentUser, onLogin, onLogout }) =
                 <button className="nav-btn" onClick={() => navTo('dashboard')}>
                   <span className="nav-icon">📊</span> DASHBOARD
                 </button>
+                <button className="nav-btn" onClick={() => { setShowEditProf(true); setMenuOpen(false); }}>
+                  <span className="nav-icon">✏️</span> EDIT PROFILE
+                </button>
                 <button className="nav-btn nav-logout" onClick={() => { onLogout(); setMenuOpen(false); }}>
                   <span className="nav-icon">🚪</span> SIGN OUT
                 </button>
@@ -305,9 +416,9 @@ const Header = ({ activePage, setActivePage, currentUser, onLogin, onLogout }) =
             {isDark ? '☀️' : '🌙'}
           </button>
 
-          {/*Dashboard button for desktop only */}
+          {/* Dashboard button — desktop only */}
           {currentUser && (
-            <button 
+            <button
               className={`nav-btn desktop-dashboard-btn${activePage === 'dashboard' ? ' active' : ''}`}
               onClick={() => navTo('dashboard')}
             >
@@ -323,6 +434,7 @@ const Header = ({ activePage, setActivePage, currentUser, onLogin, onLogout }) =
                 currentUser={currentUser}
                 onNavigate={navTo}
                 onLogout={onLogout}
+                onEditProfile={() => setShowEditProf(true)}
               />
             ) : (
               <button className="auth-btn" onClick={() => setShowAuth(true)}>
@@ -342,11 +454,18 @@ const Header = ({ activePage, setActivePage, currentUser, onLogin, onLogout }) =
         </div>
       </header>
 
-      {/* Auth modal */}
       {showAuth && (
-        <AuthModal
-          onClose={() => setShowAuth(false)}
-          onLogin={onLogin}
+        <AuthModal onClose={() => setShowAuth(false)} onLogin={onLogin} />
+      )}
+
+      {showEditProf && currentUser && (
+        <EditProfileModal
+          currentUser={currentUser}
+          onClose={() => setShowEditProf(false)}
+          onSave={(updatedUser) => {
+            onProfileUpdate?.(updatedUser);
+            setShowEditProf(false);
+          }}
         />
       )}
     </>
