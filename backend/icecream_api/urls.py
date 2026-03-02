@@ -9,6 +9,8 @@ from .views import (
     MyOrdersView,
     PlaceOrderView,
     UpdateOrderStatusView,
+    CancelOrderView,
+    AdminStatsView,
     AdminLogView,
 )
 
@@ -27,7 +29,9 @@ urlpatterns = [
     path('orders/my-orders',        MyOrdersView.as_view(),          name='my-orders'),
     path('orders/place',            PlaceOrderView.as_view(),        name='place-order'),
     path('orders/<int:order_id>/status', UpdateOrderStatusView.as_view(), name='update-order-status'),
+    path('orders/<int:order_id>/cancel', CancelOrderView.as_view(),       name='cancel-order'),
 
     # Admin
+    path('admin/stats/',            AdminStatsView.as_view(),        name='admin-stats'),
     path('admin/logs/',             AdminLogView.as_view(),          name='admin-logs'),
 ]

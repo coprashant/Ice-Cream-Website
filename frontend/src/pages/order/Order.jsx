@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { flavourData, getPriceByName } from '../../data/flavours';
 import './Order.css';
 
@@ -7,7 +7,7 @@ const API_BASE = 'http://localhost:8000/api';
 // ─────────────────────────────────────────────
 // Single flavour row
 // ─────────────────────────────────────────────
-const OrderRow = ({ row, index, onUpdate, onRemove, showRemove }) => {
+const OrderRow = ({ row, index, onUpdate, onRemove, showRemove, hasError }) => {
   const handleFlavourChange = (e) => {
     const name  = e.target.value;
     const price = getPriceByName(name);
@@ -19,10 +19,15 @@ const OrderRow = ({ row, index, onUpdate, onRemove, showRemove }) => {
   };
 
   return (
-    <div className="order-row">
+    <div className={`order-row${hasError ? ' row-error' : ''}`}>
       <div className="order-row-select">
         <label className="field-label">Flavour</label>
-        <select value={row.flavour} onChange={handleFlavourChange} className="select-field" required>
+        <select
+          value={row.flavour}
+          onChange={handleFlavourChange}
+          className={`select-field${hasError ? ' field-invalid' : ''}`}
+          required
+        >
           <option value="" disabled>Select a flavour...</option>
           {Object.entries(flavourData).map(([category, items]) => (
             <optgroup key={category} label={category}>
@@ -84,22 +89,17 @@ const PreviewModal = ({ isOpen, onClose, orderRows, customerInfo, total, onConfi
         </div>
 
         <div className="modal-customer">
-          <div className="modal-info-row">
-            <span className="modal-info-label">Contact</span>
-            <span className="modal-info-value">{customerInfo.contact_person}</span>
-          </div>
-          <div className="modal-info-row">
-            <span className="modal-info-label">Business</span>
-            <span className="modal-info-value">{customerInfo.business_name}</span>
-          </div>
-          <div className="modal-info-row">
-            <span className="modal-info-label">Phone</span>
-            <span className="modal-info-value">{customerInfo.phone}</span>
-          </div>
-          <div className="modal-info-row">
-            <span className="modal-info-label">Address</span>
-            <span className="modal-info-value">{customerInfo.address}</span>
-          </div>
+          {[
+            { label: 'Contact',  value: customerInfo.contact_person },
+            { label: 'Business', value: customerInfo.business_name },
+            { label: 'Phone',    value: customerInfo.phone },
+            { label: 'Address',  value: customerInfo.address },
+          ].map(({ label, value }) => (
+            <div key={label} className="modal-info-row">
+              <span className="modal-info-label">{label}</span>
+              <span className="modal-info-value">{value}</span>
+            </div>
+          ))}
         </div>
 
         <div className="modal-items">
@@ -129,30 +129,86 @@ const PreviewModal = ({ isOpen, onClose, orderRows, customerInfo, total, onConfi
 };
 
 // ─────────────────────────────────────────────
+// Order Confirmation Screen
+// ─────────────────────────────────────────────
+const ConfirmationScreen = ({ order, onPlaceAnother, onGoToDashboard }) => {
+  const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => {
+    if (countdown <= 0) { onGoToDashboard(); return; }
+    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [countdown]);
+
+  return (
+    <div className="order-page">
+      <div className="confirmation-screen">
+        <div className="confirmation-icon">🎉</div>
+        <h2 className="confirmation-title">Order Placed!</h2>
+        <p className="confirmation-sub">Your order has been received and is being processed.</p>
+
+        <div className="confirmation-card">
+          <div className="confirmation-id">
+            <span className="conf-label">Order ID</span>
+            <span className="conf-value">#{order.id}</span>
+          </div>
+          <div className="confirmation-divider" />
+          <div className="confirmation-items">
+            {order.items.map((item, i) => (
+              <div key={i} className="conf-item-row">
+                <span className="conf-item-name">{item.item_name}</span>
+                <span className="conf-item-qty">× {item.quantity}</span>
+                <span className="conf-item-price">रु{parseFloat(item.subtotal).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="confirmation-divider" />
+          <div className="confirmation-total">
+            <span>Total</span>
+            <span className="conf-total-value">रु{parseFloat(order.total_amount).toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div className="confirmation-actions">
+          <button className="btn-secondary-order" onClick={onPlaceAnother}>
+            + Place Another Order
+          </button>
+          <button className="btn-primary-order" onClick={onGoToDashboard}>
+            Go to Dashboard
+            <span className="countdown-badge">{countdown}</span>
+          </button>
+        </div>
+
+        <p className="confirmation-hint">Redirecting to dashboard in {countdown}s…</p>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
 // Main Order page
 // ─────────────────────────────────────────────
-const Order = ({ currentUser }) => {
-  const [profile,    setProfile]    = useState(null);
-  const [orderRows,  setOrderRows]  = useState([{ flavour: '', qty: 1, price: 0 }]);
-  const [showModal,  setShowModal]  = useState(false);
-  const [loading,    setLoading]    = useState(false);
-  const [successMsg, setSuccessMsg] = useState('');
-  const [errors,     setErrors]     = useState({});
+const Order = ({ currentUser, setActivePage }) => {
+  const [profile,        setProfile]        = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [orderRows,      setOrderRows]      = useState([{ flavour: '', qty: 1, price: 0 }]);
+  const [showModal,      setShowModal]      = useState(false);
+  const [loading,        setLoading]        = useState(false);
+  const [confirmedOrder, setConfirmedOrder] = useState(null);
+  const [errors,         setErrors]         = useState({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
-  const total = orderRows.reduce((sum, r) => sum + r.price * r.qty, 0);
-
-  // Load the user's full profile (including business details) on mount
   useEffect(() => {
     if (!currentUser) return;
-    fetch(`${API_BASE}/auth/me`, {
-      headers: { 'X-User-Id': currentUser.id },
-    })
+    setProfileLoading(true);
+    fetch(`${API_BASE}/auth/me`, { headers: { 'X-User-Id': currentUser.id } })
       .then(r => r.json())
       .then(data => setProfile(data))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setProfileLoading(false));
   }, [currentUser]);
 
-  // Not logged in — prompt them to use the navbar login
+  // Not logged in
   if (!currentUser) {
     return (
       <div className="order-page">
@@ -162,6 +218,22 @@ const Order = ({ currentUser }) => {
           <p>Please sign in using the button in the top-right corner to place an order.</p>
         </div>
       </div>
+    );
+  }
+
+  // Confirmation screen
+  if (confirmedOrder) {
+    return (
+      <ConfirmationScreen
+        order={confirmedOrder}
+        onPlaceAnother={() => {
+          setConfirmedOrder(null);
+          setOrderRows([{ flavour: '', qty: 1, price: 0 }]);
+          setErrors({});
+          setSubmitAttempted(false);
+        }}
+        onGoToDashboard={() => setActivePage?.('dashboard')}
+      />
     );
   }
 
@@ -176,18 +248,33 @@ const Order = ({ currentUser }) => {
 
   const validate = () => {
     const e = {};
-    if (!orderRows.some(r => r.flavour)) e.flavours = 'Select at least one flavour';
+    const filledRows = orderRows.filter(r => r.flavour);
+    if (filledRows.length === 0) {
+      e.flavours = 'Please select at least one flavour.';
+    }
+    // Mark rows that are partially filled but have no flavour selected
+    const emptyRowIndices = orderRows
+      .map((r, i) => (!r.flavour ? i : null))
+      .filter(i => i !== null && orderRows.length > 1);
+    if (emptyRowIndices.length > 0) {
+      e.emptyRows = emptyRowIndices;
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleReview = () => {
+    setSubmitAttempted(true);
     if (validate()) setShowModal(true);
   };
 
+  // Re-validate live once user has tried submitting
+  useEffect(() => {
+    if (submitAttempted) validate();
+  }, [orderRows, submitAttempted]);
+
   const handlePlaceOrder = async () => {
     setLoading(true);
-
     const payload = {
       business: currentUser.business,
       items: orderRows
@@ -205,8 +292,7 @@ const Order = ({ currentUser }) => {
       if (response.ok) {
         const result = await response.json();
         setShowModal(false);
-        setSuccessMsg(`🎉 Order placed! Order ID: #${result.id}`);
-        setOrderRows([{ flavour: '', qty: 1, price: 0 }]);
+        setConfirmedOrder(result);
       } else {
         const err = await response.json();
         alert(`Error: ${JSON.stringify(err)}`);
@@ -219,21 +305,7 @@ const Order = ({ currentUser }) => {
   };
 
   const business = profile?.business_details;
-
-  if (successMsg) {
-    return (
-      <div className="order-page">
-        <div className="success-screen">
-          <div className="success-icon">🍦</div>
-          <h2>Order Placed!</h2>
-          <p>{successMsg}</p>
-          <button className="btn-primary" onClick={() => setSuccessMsg('')}>
-            Place Another Order
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const total    = orderRows.reduce((sum, r) => sum + r.price * r.qty, 0);
 
   return (
     <div className="order-page">
@@ -245,35 +317,39 @@ const Order = ({ currentUser }) => {
         </div>
 
         <div className="order-layout">
-          {/* Pre-filled business info — read only */}
+          {/* Pre-filled business info */}
           <div className="order-card">
             <h3 className="card-title">📋 Delivering To</h3>
-            {business ? (
+            {profileLoading ? (
+              <div className="profile-loading">
+                {[1,2,3,4].map(i => (
+                  <div key={i} className="profile-skeleton-row">
+                    <div className="skeleton sk-label" />
+                    <div className="skeleton sk-value" />
+                  </div>
+                ))}
+              </div>
+            ) : business ? (
               <div className="prefill-grid">
-                <div className="prefill-item">
-                  <span className="prefill-label">Business</span>
-                  <span className="prefill-value">{business.name}</span>
-                </div>
-                <div className="prefill-item">
-                  <span className="prefill-label">Contact</span>
-                  <span className="prefill-value">{business.contact_person || '—'}</span>
-                </div>
-                <div className="prefill-item">
-                  <span className="prefill-label">Phone</span>
-                  <span className="prefill-value">{business.phone || '—'}</span>
-                </div>
-                <div className="prefill-item">
-                  <span className="prefill-label">Address</span>
-                  <span className="prefill-value">{business.address || '—'}</span>
-                </div>
+                {[
+                  { label: 'Business', value: business.name },
+                  { label: 'Contact',  value: business.contact_person || '—' },
+                  { label: 'Phone',    value: business.phone || '—' },
+                  { label: 'Address',  value: business.address || '—' },
+                ].map(({ label, value }) => (
+                  <div key={label} className="prefill-item">
+                    <span className="prefill-label">{label}</span>
+                    <span className="prefill-value">{value}</span>
+                  </div>
+                ))}
               </div>
             ) : (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading profile...</p>
+              <p className="profile-error">Could not load profile. Please refresh.</p>
             )}
             <p className="prefill-hint">
-              ✏️ Need to update these details?{' '}
+              ✏️ Need to update these?{' '}
               <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
-                Visit your Dashboard → Edit Profile
+                Use the 👤 menu → Edit Profile
               </span>
             </p>
           </div>
@@ -281,12 +357,24 @@ const Order = ({ currentUser }) => {
           {/* Flavour selection */}
           <div className="order-card">
             <h3 className="card-title">🍦 Your Flavours</h3>
-            {errors.flavours && <p className="error-msg">{errors.flavours}</p>}
+
+            {errors.flavours && (
+              <div className="validation-error-banner">
+                ⚠️ {errors.flavours}
+              </div>
+            )}
+
             <div className="order-rows">
               {orderRows.map((row, i) => (
-                <OrderRow key={i} row={row} index={i}
-                  onUpdate={updateRow} onRemove={removeRow}
-                  showRemove={orderRows.length > 1} />
+                <OrderRow
+                  key={i}
+                  row={row}
+                  index={i}
+                  onUpdate={updateRow}
+                  onRemove={removeRow}
+                  showRemove={orderRows.length > 1}
+                  hasError={errors.emptyRows?.includes(i)}
+                />
               ))}
             </div>
             <button type="button" className="add-flavour-btn" onClick={addRow}>

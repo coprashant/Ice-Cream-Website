@@ -161,8 +161,26 @@ const QuickReorderWidget = ({ orders, onReorder }) => {
 // ─────────────────────────────────────────────
 // Order card (Orders tab)
 // ─────────────────────────────────────────────
-const OrderCard = ({ order, onReorder }) => {
-  const [expanded, setExpanded] = useState(false);
+const OrderCard = ({ order, onReorder, onCancel }) => {
+  const [expanded,    setExpanded]    = useState(false);
+  const [cancelling,  setCancelling]  = useState(false);
+  const [cancelError, setCancelError] = useState('');
+
+  const handleCancel = async (e) => {
+    e.stopPropagation();
+    if (!window.confirm(`Cancel Order #${order.id}? This cannot be undone.`)) return;
+    setCancelling(true);
+    setCancelError('');
+    try {
+      const ok = await onCancel(order.id);
+      if (!ok) setCancelError('Could not cancel. Please try again.');
+    } catch {
+      setCancelError('Network error.');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   return (
     <div className="order-hist-card">
       <div className="order-hist-header" onClick={() => setExpanded(e => !e)}>
@@ -196,7 +214,17 @@ const OrderCard = ({ order, onReorder }) => {
               </div>
             ))}
           </div>
+          {cancelError && <p className="cancel-error">{cancelError}</p>}
           <div className="order-hist-footer">
+            {order.status === 'Pending' && (
+              <button
+                className="btn-cancel-order"
+                onClick={handleCancel}
+                disabled={cancelling}
+              >
+                {cancelling ? '⏳ Cancelling…' : '✕ Cancel Order'}
+              </button>
+            )}
             <button className="btn-reorder" onClick={() => onReorder(order)}>
               🔄 Quick Reorder
             </button>
@@ -270,6 +298,23 @@ const Dashboard = ({ currentUser, setActivePage, onLogout, onProfileUpdate }) =>
     };
     load();
   }, [currentUser.id]);
+
+  const handleCancel = async (orderId) => {
+    try {
+      const res = await fetch(`${API_BASE}/orders/${orderId}/cancel`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-User-Id': currentUser.id },
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
 
   const handleReorder = async (order) => {
     try {
@@ -466,7 +511,7 @@ const Dashboard = ({ currentUser, setActivePage, onLogout, onProfileUpdate }) =>
             ) : (
               <div className="orders-list">
                 {filteredOrders.map(order => (
-                  <OrderCard key={order.id} order={order} onReorder={handleReorder} />
+                  <OrderCard key={order.id} order={order} onReorder={handleReorder} onCancel={handleCancel} />
                 ))}
               </div>
             )}

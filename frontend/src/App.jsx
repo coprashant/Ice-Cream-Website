@@ -7,6 +7,7 @@ import Home from './pages/home/Home';
 import Order from './pages/order/Order';
 import Contact from './pages/contact/Contact';
 import Dashboard from './pages/dashboard/Dashboard';
+import Admin from './pages/admin/Admin';
 
 function AppContent() {
   const [activePage, setActivePage] = useState('home');
@@ -30,6 +31,7 @@ function AppContent() {
     localStorage.setItem('businessId', user.business ?? '');
     localStorage.setItem('userRole',   user.role);
     setCurrentUser(user);
+    navigate(user.role === 'ADMIN' ? 'admin' : 'dashboard');
   };
 
   const handleLogout = () => {
@@ -40,26 +42,24 @@ function AppContent() {
     navigate('home');
   };
 
-  // Called when Edit Profile is saved from the Header dropdown.
-  // Updates currentUser in App state so the dropdown name refreshes immediately.
   const handleProfileUpdate = (updatedUser) => {
     setCurrentUser(updatedUser);
   };
 
   const renderPage = () => {
     switch (activePage) {
-      case 'home':      return <Home setActivePage={navigate} />;
-      case 'order':     return <Order currentUser={currentUser} />;
-      case 'contact':   return <Contact />;
-      case 'dashboard': return currentUser
-        ? <Dashboard
-            currentUser={currentUser}
-            setActivePage={navigate}
-            onLogout={handleLogout}
-            onProfileUpdate={handleProfileUpdate}
-          />
-        : <Home setActivePage={navigate} />;
-      default:          return <Home setActivePage={navigate} />;
+      case 'home':    return <Home setActivePage={navigate} />;
+      case 'order':   return <Order currentUser={currentUser} setActivePage={navigate} />;
+      case 'contact': return <Contact />;
+      case 'dashboard':
+        return currentUser && currentUser.role !== 'ADMIN'
+          ? <Dashboard currentUser={currentUser} setActivePage={navigate} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} />
+          : <Home setActivePage={navigate} />;
+      case 'admin':
+        return currentUser && currentUser.role === 'ADMIN'
+          ? <Admin currentUser={currentUser} setActivePage={navigate} />
+          : <Home setActivePage={navigate} />;
+      default: return <Home setActivePage={navigate} />;
     }
   };
 
@@ -76,10 +76,7 @@ function AppContent() {
       <main key={pageKey} className="page-enter page-enter-active">
         {renderPage()}
       </main>
-      <Footer
-        setActivePage={navigate}
-        currentUser={currentUser}
-      />
+      <Footer setActivePage={navigate} currentUser={currentUser} />
     </div>
   );
 }

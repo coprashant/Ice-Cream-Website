@@ -65,13 +65,13 @@ class RegisterView(APIView):
     """
 
     def post(self, request):
-        username      = request.data.get('username', '').strip()
-        password      = request.data.get('password', '')
-        business_name = request.data.get('business_name', '').strip()
+        username       = request.data.get('username', '').strip()
+        password       = request.data.get('password', '')
+        business_name  = request.data.get('business_name', '').strip()
         contact_person = request.data.get('contact_person', '').strip()
-        phone         = request.data.get('phone', '').strip()
-        email         = request.data.get('email', '').strip()
-        address       = request.data.get('address', '').strip()
+        phone          = request.data.get('phone', '').strip()
+        email          = request.data.get('email', '').strip()
+        address        = request.data.get('address', '').strip()
 
         if not username or not password or not business_name:
             return Response(
@@ -110,12 +110,7 @@ class RegisterView(APIView):
 
 
 class MeView(APIView):
-    """
-    GET /api/auth/me
-    Returns the full profile of the currently logged-in user,
-    including their linked business details.
-    Used by the dashboard to load profile info without re-logging in.
-    """
+    """GET /api/auth/me"""
 
     def get(self, request):
         user = get_user_from_request(request)
@@ -130,11 +125,7 @@ class MeView(APIView):
 
 
 class UpdateProfileView(APIView):
-    """
-    PATCH /api/auth/me
-    Lets a logged-in customer update their business details
-    (contact person, phone, email, address) from the dashboard.
-    """
+    """PATCH /api/auth/me/update"""
 
     def patch(self, request):
         user = get_user_from_request(request)
@@ -219,11 +210,7 @@ class OrderListView(APIView):
 
 
 class MyOrdersView(APIView):
-    """
-    GET /api/orders/my-orders
-    Returns the order history for the currently logged-in customer.
-    Includes all items and status for dashboard display.
-    """
+    """GET /api/orders/my-orders"""
 
     def get(self, request):
         user = get_user_from_request(request)
@@ -239,6 +226,7 @@ class MyOrdersView(APIView):
             .filter(business=user.business)
             .select_related('business')
             .prefetch_related('items')
+            .order_by('-order_date')
         )
 
         return Response(OrderSerializer(orders, many=True).data)
@@ -298,6 +286,109 @@ class UpdateOrderStatusView(APIView):
         AdminLog.record(user, f'Changed order #{order.id} status: {old_status} → {new_status}')
 
         return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+
+
+class CancelOrderView(APIView):
+    """
+    PATCH /api/orders/<order_id>/cancel
+    Allows a customer to cancel their own Pending order.
+    Admins can cancel any order.
+    """
+
+    def patch(self, request, order_id):
+        user = get_user_from_request(request)
+
+        if not user:
+            return Response(
+                {'error': 'Authentication required.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        try:
+            order = Order.objects.select_related('business').get(id=order_id)
+        except Order.DoesNotExist:
+            return Response({'error': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Customers can only cancel their own orders
+        if not user.is_admin and order.business != user.business:
+            return Response(
+                {'error': 'You can only cancel your own orders.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Only Pending orders can be cancelled by customers
+        if not user.is_admin and order.status != Order.Status.PENDING:
+            return Response(
+                {'error': 'Only pending orders can be cancelled.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if order.status == Order.Status.CANCELLED:
+            return Response(
+                {'error': 'Order is already cancelled.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order.status = Order.Status.CANCELLED
+        order.save(update_fields=['status'])
+
+        if user.is_admin:
+            AdminLog.record(user, f'Admin cancelled order #{order.id}')
+
+        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+
+
+# ------------------------------------------------------------------
+# Admin
+# ------------------------------------------------------------------
+
+class AdminStatsView(APIView):
+    """GET /api/admin/stats/ — Admin only"""
+
+    def get(self, request):
+        from django.db.models import Sum, Count
+        from django.utils     import timezone
+        import datetime
+
+        user = get_user_from_request(request)
+
+        if not user or not user.is_admin:
+            return Response(
+                {'error': 'Admin access required.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        now        = timezone.now()
+        today      = now.date()
+        month_start = today.replace(day=1)
+
+        total_orders    = Order.objects.count()
+        pending_count   = Order.objects.filter(status=Order.Status.PENDING).count()
+        confirmed_count = Order.objects.filter(status=Order.Status.CONFIRMED).count()
+        total_businesses = Business.objects.count()
+
+        revenue_today = (
+            Order.objects
+            .filter(order_date__date=today)
+            .exclude(status=Order.Status.CANCELLED)
+            .aggregate(total=Sum('total_amount'))['total'] or 0
+        )
+
+        revenue_month = (
+            Order.objects
+            .filter(order_date__date__gte=month_start)
+            .exclude(status=Order.Status.CANCELLED)
+            .aggregate(total=Sum('total_amount'))['total'] or 0
+        )
+
+        return Response({
+            'total_orders':      total_orders,
+            'pending_count':     pending_count,
+            'confirmed_count':   confirmed_count,
+            'total_businesses':  total_businesses,
+            'revenue_today':     float(revenue_today),
+            'revenue_month':     float(revenue_month),
+        })
 
 
 # ------------------------------------------------------------------

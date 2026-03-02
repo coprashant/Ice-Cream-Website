@@ -309,18 +309,26 @@ const UserDropdown = ({ currentUser, onNavigate, onLogout, onEditProfile }) => {
             </div>
           )}
 
-          {/* Dashboard — only shown in dropdown on mobile (desktop has dedicated button) */}
-          <button className="desktop-hide" onClick={go(() => onNavigate('dashboard'))}>
-            📊 Dashboard
-          </button>
+          {/* Dashboard / Admin — only shown in dropdown on mobile */}
+          {currentUser.role === 'ADMIN' ? (
+            <button className="desktop-hide" onClick={go(() => onNavigate('admin'))}>
+              👑 Admin Panel
+            </button>
+          ) : (
+            <button className="desktop-hide" onClick={go(() => onNavigate('dashboard'))}>
+              📊 Dashboard
+            </button>
+          )}
 
           <button onClick={go(() => onNavigate('order'))}>
             🛒 Place Order
           </button>
 
-          <button onClick={go(onEditProfile)}>
-            ✏️ Edit Profile
-          </button>
+          {currentUser.role !== 'ADMIN' && (
+            <button onClick={go(onEditProfile)}>
+              ✏️ Edit Profile
+            </button>
+          )}
 
           <div className="dropdown-divider" />
 
@@ -392,12 +400,20 @@ const Header = ({ activePage, setActivePage, currentUser, onLogin, onLogout, onP
           <div className="mobile-auth-section">
             {currentUser ? (
               <>
-                <button className="nav-btn" onClick={() => navTo('dashboard')}>
-                  <span className="nav-icon">📊</span> DASHBOARD
-                </button>
-                <button className="nav-btn" onClick={() => { setShowEditProf(true); setMenuOpen(false); }}>
-                  <span className="nav-icon">✏️</span> EDIT PROFILE
-                </button>
+                {currentUser.role === 'ADMIN' ? (
+                  <button className="nav-btn" onClick={() => navTo('admin')}>
+                    <span className="nav-icon">👑</span> ADMIN PANEL
+                  </button>
+                ) : (
+                  <button className="nav-btn" onClick={() => navTo('dashboard')}>
+                    <span className="nav-icon">📊</span> DASHBOARD
+                  </button>
+                )}
+                {currentUser.role !== 'ADMIN' && (
+                  <button className="nav-btn" onClick={() => { setShowEditProf(true); setMenuOpen(false); }}>
+                    <span className="nav-icon">✏️</span> EDIT PROFILE
+                  </button>
+                )}
                 <button className="nav-btn nav-logout" onClick={() => { onLogout(); setMenuOpen(false); }}>
                   <span className="nav-icon">🚪</span> SIGN OUT
                 </button>
@@ -416,14 +432,23 @@ const Header = ({ activePage, setActivePage, currentUser, onLogin, onLogout, onP
             {isDark ? '☀️' : '🌙'}
           </button>
 
-          {/* Dashboard button — desktop only */}
-          {currentUser && (
+          {/* Dashboard / Admin button — desktop only */}
+          {currentUser && currentUser.role !== 'ADMIN' && (
             <button
               className={`nav-btn desktop-dashboard-btn${activePage === 'dashboard' ? ' active' : ''}`}
               onClick={() => navTo('dashboard')}
             >
               <span className="nav-icon">📊</span>
               DASHBOARD
+            </button>
+          )}
+          {currentUser && currentUser.role === 'ADMIN' && (
+            <button
+              className={`nav-btn desktop-dashboard-btn admin-panel-btn${activePage === 'admin' ? ' active' : ''}`}
+              onClick={() => navTo('admin')}
+            >
+              <span className="nav-icon">👑</span>
+              ADMIN
             </button>
           )}
 
