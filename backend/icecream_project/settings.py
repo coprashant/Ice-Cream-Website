@@ -22,6 +22,11 @@ INSTALLED_APPS = [
     'icecream_api',
 ]
 
+CORS_ALLOWED_ORIGINS = [
+    "https://sheetalicecreamudhyog.vercel.app", 
+    "http://localhost:5173",                   
+]
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -62,7 +67,7 @@ DATABASES = {
     )
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
