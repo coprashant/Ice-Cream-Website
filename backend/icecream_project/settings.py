@@ -1,14 +1,12 @@
 from pathlib import Path
-from dotenv import load_dotenv
-from corsheaders.defaults import default_headers
 import os
-
-load_dotenv()
+import dj_database_url
+from corsheaders.defaults import default_headers
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv('SECRET_KEY')
-DEBUG = os.getenv('DEBUG') == 'True'
+SECRET_KEY = os.getenv('SECRET_KEY', 'change-me-in-production')
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
@@ -17,6 +15,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
@@ -26,11 +25,13 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 ROOT_URLCONF = 'icecream_project.urls'
@@ -54,14 +55,10 @@ TEMPLATES = [
 WSGI_APPLICATION = 'icecream_project.wsgi.application'
 
 DATABASES = {
-    'default': {
-        'ENGINE':   'django.db.backends.postgresql',
-        'NAME':     os.getenv('DB_NAME'),
-        'USER':     os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST':     os.getenv('DB_HOST'),
-        'PORT':     os.getenv('DB_PORT'),
-    }
+    'default': dj_database_url.config(
+        default=os.getenv('DATABASE_URL'),
+        conn_max_age=600
+    )
 }
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -76,11 +73,13 @@ REST_FRAMEWORK = {
 }
 
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE     = 'UTC'
-USE_I18N      = True
-USE_TZ        = True
+TIME_ZONE = 'UTC'
+USE_I18N = True
+USE_TZ = True
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
