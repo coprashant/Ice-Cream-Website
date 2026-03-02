@@ -9,6 +9,7 @@
   --accent-warm: #F4A261;
   --accent-soft: rgba(46, 126, 170, 0.08);
   --accent-border: rgba(46, 126, 170, 0.2);
+  --accent-danger: rgba(243, 62, 49, 0.929);
 
   /* Backgrounds */
   --background-primary: #F0F7FC;
@@ -48,7 +49,7 @@ body.dark-mode {
   --accent-warm: #F4A261;
   --accent-soft: rgba(79, 179, 232, 0.1);
   --accent-border: rgba(79, 179, 232, 0.2);
-
+  --accent-danger: rgba(243, 62, 49, 0.929);
   --background-primary: #0d1a22;
   --card-bg: #132233;
   --input-bg: #1a2d3d;

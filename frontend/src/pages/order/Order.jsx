@@ -4,9 +4,7 @@ import './Order.css';
 
 const API_BASE = 'http://localhost:8000/api';
 
-// ─────────────────────────────────────────────
 // Single flavour row
-// ─────────────────────────────────────────────
 const OrderRow = ({ row, index, onUpdate, onRemove, showRemove, hasError }) => {
   const handleFlavourChange = (e) => {
     const name  = e.target.value;
@@ -67,9 +65,8 @@ const OrderRow = ({ row, index, onUpdate, onRemove, showRemove, hasError }) => {
   );
 };
 
-// ─────────────────────────────────────────────
+
 // Preview modal
-// ─────────────────────────────────────────────
 const PreviewModal = ({ isOpen, onClose, orderRows, customerInfo, total, onConfirm, loading }) => {
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
@@ -128,9 +125,7 @@ const PreviewModal = ({ isOpen, onClose, orderRows, customerInfo, total, onConfi
   );
 };
 
-// ─────────────────────────────────────────────
 // Order Confirmation Screen
-// ─────────────────────────────────────────────
 const ConfirmationScreen = ({ order, onPlaceAnother, onGoToDashboard }) => {
   const [countdown, setCountdown] = useState(5);
 
@@ -185,17 +180,15 @@ const ConfirmationScreen = ({ order, onPlaceAnother, onGoToDashboard }) => {
   );
 };
 
-// ─────────────────────────────────────────────
 // Main Order page
-// ─────────────────────────────────────────────
 const Order = ({ currentUser, setActivePage }) => {
-  const [profile,        setProfile]        = useState(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [orderRows,      setOrderRows]      = useState([{ flavour: '', qty: 1, price: 0 }]);
-  const [showModal,      setShowModal]      = useState(false);
-  const [loading,        setLoading]        = useState(false);
-  const [confirmedOrder, setConfirmedOrder] = useState(null);
-  const [errors,         setErrors]         = useState({});
+  const [profile,         setProfile]         = useState(null);
+  const [profileLoading,  setProfileLoading]  = useState(true);
+  const [orderRows,       setOrderRows]       = useState([{ flavour: '', qty: 1, price: 0 }]);
+  const [showModal,       setShowModal]       = useState(false);
+  const [loading,         setLoading]         = useState(false);
+  const [confirmedOrder,  setConfirmedOrder]  = useState(null);
+  const [errors,          setErrors]          = useState({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
   useEffect(() => {
@@ -208,7 +201,20 @@ const Order = ({ currentUser, setActivePage }) => {
       .finally(() => setProfileLoading(false));
   }, [currentUser]);
 
-  // Not logged in
+  // Re-validate live once user has tried submitting
+  useEffect(() => {
+    if (!submitAttempted) return;
+    const e = {};
+    if (!orderRows.some(r => r.flavour)) e.flavours = 'Please select at least one flavour.';
+    const emptyRowIndices = orderRows.length > 1
+      ? orderRows.map((r, i) => (!r.flavour ? i : null)).filter(i => i !== null)
+      : [];
+    if (emptyRowIndices.length) e.emptyRows = emptyRowIndices;
+    setErrors(e);
+  }, [orderRows, submitAttempted]);
+
+  // ── Conditional renders AFTER all hooks ──
+
   if (!currentUser) {
     return (
       <div className="order-page">
@@ -221,7 +227,6 @@ const Order = ({ currentUser, setActivePage }) => {
     );
   }
 
-  // Confirmation screen
   if (confirmedOrder) {
     return (
       <ConfirmationScreen
@@ -248,17 +253,11 @@ const Order = ({ currentUser, setActivePage }) => {
 
   const validate = () => {
     const e = {};
-    const filledRows = orderRows.filter(r => r.flavour);
-    if (filledRows.length === 0) {
-      e.flavours = 'Please select at least one flavour.';
-    }
-    // Mark rows that are partially filled but have no flavour selected
-    const emptyRowIndices = orderRows
-      .map((r, i) => (!r.flavour ? i : null))
-      .filter(i => i !== null && orderRows.length > 1);
-    if (emptyRowIndices.length > 0) {
-      e.emptyRows = emptyRowIndices;
-    }
+    if (!orderRows.some(r => r.flavour)) e.flavours = 'Please select at least one flavour.';
+    const emptyRowIndices = orderRows.length > 1
+      ? orderRows.map((r, i) => (!r.flavour ? i : null)).filter(i => i !== null)
+      : [];
+    if (emptyRowIndices.length) e.emptyRows = emptyRowIndices;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -267,11 +266,6 @@ const Order = ({ currentUser, setActivePage }) => {
     setSubmitAttempted(true);
     if (validate()) setShowModal(true);
   };
-
-  // Re-validate live once user has tried submitting
-  useEffect(() => {
-    if (submitAttempted) validate();
-  }, [orderRows, submitAttempted]);
 
   const handlePlaceOrder = async () => {
     setLoading(true);

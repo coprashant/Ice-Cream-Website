@@ -793,7 +793,7 @@ body.dark-mode .cancelled-label { color: #ef9a9a; }
 
 .order-hist-footer { display: flex; justify-content: flex-end; }
 
-.btn-reorder {
+.btn-reorder , .btn-cancel-order{
   font-family: 'DM Sans', sans-serif;
   font-size: 0.85rem; font-weight: 700;
   color: var(--accent-primary);
@@ -801,9 +801,11 @@ body.dark-mode .cancelled-label { color: #ef9a9a; }
   border: 1.5px solid var(--accent-border);
   padding: 9px 18px; border-radius: 100px;
   cursor: pointer; transition: all 0.2s ease;
+  margin: 0 5px;
 }
 
 .btn-reorder:hover { background: var(--accent-primary); color: white; border-color: var(--accent-primary); }
+.btn-cancel-order:hover { background: var(--accent-danger); color: white; border-color: var(--accent-danger); }
 
 /* ─────────────────────────────────────────────
    Profile Tab
