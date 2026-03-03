@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './Dashboard.css';
 
-const API_BASE = import.meta.env.VITE_API_URL;
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 // ─────────────────────────────────────────────
 // Skeleton
