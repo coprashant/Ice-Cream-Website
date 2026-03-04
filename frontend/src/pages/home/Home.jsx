@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { flavourData } from '../../data/flavours';
 import './Home.css';
 
@@ -7,15 +7,27 @@ const FlavourCard = ({ item, category, index }) => {
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) ref.current?.classList.add('visible'); },
-      { threshold: 0.1 }
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          ref.current?.classList.add('visible');
+          observer.unobserve(ref.current);
+        }
+      },
+      { threshold: 0.15 }
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, []);
 
   return (
-    <div ref={ref} className="flavour-card" style={{ '--delay': `${index * 80}ms` }}>
+    <div
+      ref={ref}
+      className="flavour-card slide-reveal"
+      style={{
+        '--delay': `${index * 100}ms`,
+        '--slide-dist': `${(index % 4) * 25}px`,
+      }}
+    >
       <span className="flavour-emoji">{item.emoji}</span>
       <div className="flavour-info">
         <span className="flavour-name">{item.name}</span>
@@ -28,22 +40,48 @@ const FlavourCard = ({ item, category, index }) => {
 
 const Home = ({ setActivePage }) => {
   const heroRef = useRef(null);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
 
+  // Hero entrance animation
   useEffect(() => {
-    setTimeout(() => heroRef.current?.classList.add('hero-loaded'), 100);
+    const timer = setTimeout(() => heroRef.current?.classList.add('hero-loaded'), 100);
+    return () => clearTimeout(timer);
   }, []);
 
-  let cardIndex = 0;
+  // Mouse parallax — only on non-touch devices
+  useEffect(() => {
+    const isTouchDevice = window.matchMedia('(hover: none)').matches;
+    if (isTouchDevice) return;
+
+    const handleMove = (e) => {
+      const x = (window.innerWidth / 2 - e.pageX) / 30;
+      const y = (window.innerHeight / 2 - e.pageY) / 30;
+      setOffset({ x, y });
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    return () => window.removeEventListener('mousemove', handleMove);
+  }, []);
+
+  // Derive card indices cleanly outside JSX
+  const categoriesWithIndex = Object.entries(flavourData).reduce((acc, [category, items]) => {
+    const startIndex = acc.nextIndex;
+    acc.categories.push({ category, items, startIndex });
+    acc.nextIndex += items.length;
+    return acc;
+  }, { categories: [], nextIndex: 0 }).categories;
 
   return (
     <div className="home-page">
-      {/* Hero */}
+
+      {/* ── Hero ── */}
       <section ref={heroRef} className="hero">
         <div className="hero-bg">
-          <div className="blob blob-1" />
-          <div className="blob blob-2" />
-          <div className="blob blob-3" />
+          <div className="blob blob-1" style={{ transform: `translate(${offset.x * -0.5}px, ${offset.y * -0.5}px)` }} />
+          <div className="blob blob-2" style={{ transform: `translate(${offset.x * 0.3}px, ${offset.y * 0.3}px)` }} />
+          <div className="blob blob-3" style={{ transform: `translate(${offset.x * -0.2}px, ${offset.y * -0.2}px)` }} />
         </div>
+
         <div className="hero-content">
           <div className="hero-badge">🏔️ Made in Nepal · Est. 2020</div>
           <h1 className="hero-title">
@@ -80,16 +118,34 @@ const Home = ({ setActivePage }) => {
             </div>
           </div>
         </div>
+
+        {/* 3D Interactive Visual */}
         <div className="hero-visual">
-          <div className="ice-cream-showcase">
-            <div className="scoop scoop-top">🍦</div>
-            <div className="scoop scoop-mid">🍧</div>
-            <div className="scoop scoop-bot">🧁</div>
+          <div
+            className="ice-cream-display"
+            style={{ transform: `translate3d(${offset.x}px, ${offset.y}px, 0)` }}
+          >
+            <div className="scoop-wrapper s-1" style={{ transform: `translate(${offset.x * 0.4}px, ${offset.y * 0.4}px)` }}>
+              <span className="scoop-icon">🍦</span>
+              <div className="scoop-shadow" />
+            </div>
+            <div className="scoop-wrapper s-2" style={{ transform: `translate(${offset.x * -0.6}px, ${offset.y * -0.6}px)` }}>
+              <span className="scoop-icon">🍧</span>
+              <div className="scoop-shadow" />
+            </div>
+            <div className="scoop-wrapper s-3" style={{ transform: `translate(${offset.x * 0.8}px, ${offset.y * 0.8}px)` }}>
+              <span className="scoop-icon">🧁</span>
+              <div className="scoop-shadow" />
+            </div>
+
+            <div className="ingredient nut" style={{ transform: `translate(${offset.x * 1.5}px, ${offset.y * 1.5}px)` }}>🥜</div>
+            <div className="ingredient leaf" style={{ transform: `translate(${offset.x * -1.2}px, ${offset.y * 1.2}px)` }}>🍃</div>
+            <div className="ingredient berry" style={{ transform: `translate(${offset.x * 2}px, ${offset.y * -1}px)` }}>🍓</div>
           </div>
         </div>
       </section>
 
-      {/* Info Strip */}
+      {/* ── Info Strip ── */}
       <div className="info-strip">
         <div className="info-item">
           <span>📍</span>
@@ -109,7 +165,7 @@ const Home = ({ setActivePage }) => {
         </div>
       </div>
 
-      {/* Flavours */}
+      {/* ── Flavours Section ── */}
       <section id="flavours-section" className="flavours-section">
         <div className="section-header">
           <span className="section-eyebrow">Our Menu</span>
@@ -117,15 +173,20 @@ const Home = ({ setActivePage }) => {
           <p className="section-sub">From creamy classics to exotic kulfis — something for everyone</p>
         </div>
 
-        {Object.entries(flavourData).map(([category, items]) => (
+        {categoriesWithIndex.map(({ category, items, startIndex }) => (
           <div key={category} className="category-group">
             <h3 className="category-title">
               <span>{category === 'Ice-Cream' ? '🍦' : '🧊'}</span>
               {category}
             </h3>
             <div className="flavours-grid">
-              {items.map((item) => (
-                <FlavourCard key={item.name} item={item} category={category} index={cardIndex++} />
+              {items.map((item, i) => (
+                <FlavourCard
+                  key={item.name}
+                  item={item}
+                  category={category}
+                  index={startIndex + i}
+                />
               ))}
             </div>
           </div>
@@ -138,6 +199,7 @@ const Home = ({ setActivePage }) => {
           </button>
         </div>
       </section>
+
     </div>
   );
 };
