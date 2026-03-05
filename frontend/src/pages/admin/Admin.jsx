@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import api from '../../api';
 import './Admin.css';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 // ─────────────────────────────────────────────
 // Skeleton
@@ -36,7 +35,7 @@ const StatusBadge = ({ status }) => {
 // ─────────────────────────────────────────────
 // Inline status changer
 // ─────────────────────────────────────────────
-const StatusChanger = ({ order, adminUser, onUpdate }) => {
+const StatusChanger = ({ order, onUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
 
@@ -47,20 +46,10 @@ const StatusChanger = ({ order, adminUser, onUpdate }) => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/orders/${order.id}/status`, {
-        method:  'PATCH',
-        headers: { 'Content-Type': 'application/json', 'X-User-Id': adminUser.id },
-        body:    JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        onUpdate(updated);
-      } else {
-        const data = await res.json();
-        setError(data.error || 'Update failed');
-      }
-    } catch {
-      setError('Network error');
+      const updated = await api.patch(`/orders/${order.id}/status`, { status: newStatus });
+      onUpdate(updated);
+    } catch (err) {
+      setError(err.message || 'Update failed');
     } finally {
       setLoading(false);
     }
@@ -87,7 +76,7 @@ const StatusChanger = ({ order, adminUser, onUpdate }) => {
 // ─────────────────────────────────────────────
 // Expandable order row
 // ─────────────────────────────────────────────
-const OrderRow = ({ order, adminUser, onUpdate }) => {
+const OrderRow = ({ order, onUpdate }) => {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -114,7 +103,7 @@ const OrderRow = ({ order, adminUser, onUpdate }) => {
           <span className="total-cell">रु{parseFloat(order.total_amount).toFixed(2)}</span>
         </td>
         <td className="td-status">
-          <StatusChanger order={order} adminUser={adminUser} onUpdate={onUpdate} />
+          <StatusChanger order={order} onUpdate={onUpdate} />
         </td>
       </tr>
 
@@ -158,17 +147,17 @@ const OrderRow = ({ order, adminUser, onUpdate }) => {
 // Admin Dashboard
 // ─────────────────────────────────────────────
 const Admin = ({ currentUser, setActivePage }) => {
-  const [stats,         setStats]         = useState(null);
-  const [orders,        setOrders]        = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [filterStatus,  setFilterStatus]  = useState('All');
-  const [searchQuery,   setSearchQuery]   = useState('');
-  const [sortBy,        setSortBy]        = useState('date_desc');
-  const [activeTab,     setActiveTab]     = useState('orders');
-
-  const headers = { 'X-User-Id': currentUser.id };
+  const [stats,        setStats]        = useState(null);
+  const [orders,       setOrders]       = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [loadError,    setLoadError]    = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [searchQuery,  setSearchQuery]  = useState('');
+  const [sortBy,       setSortBy]       = useState('date_desc');
+  const [activeTab,    setActiveTab]    = useState('orders');
 
   // Guard — redirect non-admins
+  // NOTE: the server enforces this too — this is just a UI guard
   if (currentUser.role !== 'ADMIN') {
     return (
       <div className="admin-page">
@@ -187,16 +176,19 @@ const Admin = ({ currentUser, setActivePage }) => {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setLoadError('');
       try {
-        const [statsRes, ordersRes] = await Promise.all([
-          fetch(`${API_BASE}/admin/stats/`,  { headers }),
-          fetch(`${API_BASE}/orders/`,       { headers }),
+        const [s, o] = await Promise.all([
+          api.get('/admin/stats/'),
+          api.get('/orders/'),
         ]);
-        const [s, o] = await Promise.all([statsRes.json(), ordersRes.json()]);
         setStats(s);
         setOrders(o);
-      } catch { /* show empty state */ }
-      finally  { setLoading(false); }
+      } catch (err) {
+        setLoadError(err.message || 'Failed to load admin data.');
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, []);
@@ -205,7 +197,6 @@ const Admin = ({ currentUser, setActivePage }) => {
     setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
   };
 
-  // Derived filter counts
   const filterCounts = useMemo(() => ({
     All:       orders.length,
     Pending:   orders.filter(o => o.status === 'Pending').length,
@@ -214,7 +205,6 @@ const Admin = ({ currentUser, setActivePage }) => {
     Cancelled: orders.filter(o => o.status === 'Cancelled').length,
   }), [orders]);
 
-  // Filter + search + sort
   const displayedOrders = useMemo(() => {
     let result = filterStatus === 'All' ? orders : orders.filter(o => o.status === filterStatus);
 
@@ -227,26 +217,39 @@ const Admin = ({ currentUser, setActivePage }) => {
       );
     }
 
-    result = [...result].sort((a, b) => {
+    return [...result].sort((a, b) => {
       switch (sortBy) {
-        case 'date_desc': return new Date(b.order_date) - new Date(a.order_date);
-        case 'date_asc':  return new Date(a.order_date) - new Date(b.order_date);
+        case 'date_desc':  return new Date(b.order_date) - new Date(a.order_date);
+        case 'date_asc':   return new Date(a.order_date) - new Date(b.order_date);
         case 'total_desc': return parseFloat(b.total_amount) - parseFloat(a.total_amount);
         case 'total_asc':  return parseFloat(a.total_amount) - parseFloat(b.total_amount);
         default: return 0;
       }
     });
-
-    return result;
   }, [orders, filterStatus, searchQuery, sortBy]);
 
   if (loading) return <div className="admin-page"><AdminSkeleton /></div>;
+
+  if (loadError) {
+    return (
+      <div className="admin-page">
+        <div className="admin-container">
+          <div className="admin-load-error">
+            <span>⚠️</span>
+            <p>{loadError}</p>
+            <button className="btn-admin-back" onClick={() => window.location.reload()}>
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-page">
       <div className="admin-container">
 
-        {/* Header */}
         <div className="admin-header">
           <div>
             <span className="section-eyebrow">Admin Panel</span>
@@ -257,7 +260,6 @@ const Admin = ({ currentUser, setActivePage }) => {
           </div>
         </div>
 
-        {/* Stats */}
         {stats && (
           <div className="admin-stats-grid">
             <div className="admin-stat-card accent">
@@ -309,7 +311,6 @@ const Admin = ({ currentUser, setActivePage }) => {
           </div>
         )}
 
-        {/* Tabs */}
         <div className="admin-tabs">
           {[
             { id: 'orders', label: '📦 Orders' },
@@ -325,10 +326,8 @@ const Admin = ({ currentUser, setActivePage }) => {
           ))}
         </div>
 
-        {/* ── Orders Tab ── */}
         {activeTab === 'orders' && (
           <div className="admin-orders-section">
-            {/* Toolbar */}
             <div className="admin-toolbar">
               <div className="admin-search-wrap">
                 <span className="search-icon">🔍</span>
@@ -355,7 +354,6 @@ const Admin = ({ currentUser, setActivePage }) => {
               </select>
             </div>
 
-            {/* Filter bar */}
             <div className="filter-bar">
               {['All', 'Pending', 'Confirmed', 'Completed', 'Cancelled'].map(s => (
                 <button
@@ -369,7 +367,6 @@ const Admin = ({ currentUser, setActivePage }) => {
               ))}
             </div>
 
-            {/* Table */}
             {displayedOrders.length === 0 ? (
               <div className="admin-empty">
                 <span>📦</span>
@@ -399,7 +396,6 @@ const Admin = ({ currentUser, setActivePage }) => {
                       <OrderRow
                         key={order.id}
                         order={order}
-                        adminUser={currentUser}
                         onUpdate={handleOrderUpdate}
                       />
                     ))}
@@ -416,9 +412,8 @@ const Admin = ({ currentUser, setActivePage }) => {
           </div>
         )}
 
-        {/* ── Activity Log Tab ── */}
         {activeTab === 'logs' && (
-          <AdminLogTab adminUser={currentUser} />
+          <AdminLogTab />
         )}
 
       </div>
@@ -427,18 +422,18 @@ const Admin = ({ currentUser, setActivePage }) => {
 };
 
 // ─────────────────────────────────────────────
-// Activity Log Tab (lazy loaded)
+// Activity Log Tab
 // ─────────────────────────────────────────────
-const AdminLogTab = ({ adminUser }) => {
+const AdminLogTab = () => {
   const [logs,    setLogs]    = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState('');
 
   useEffect(() => {
-    fetch(`${API_BASE}/admin/logs/`, { headers: { 'X-User-Id': adminUser.id } })
-      .then(r => r.json())
-      .then(data => setLogs(data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    api.get('/admin/logs/')
+      .then(data  => setLogs(data))
+      .catch(err  => setError(err.message || 'Could not load logs.'))
+      .finally(()  => setLoading(false));
   }, []);
 
   if (loading) {
@@ -447,6 +442,15 @@ const AdminLogTab = ({ adminUser }) => {
         {[1,2,3,4,5].map(i => (
           <div key={i} className="skeleton" style={{ height: 48, borderRadius: 12, marginBottom: 8 }} />
         ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="admin-empty">
+        <span>⚠️</span>
+        <p>{error}</p>
       </div>
     );
   }
@@ -472,7 +476,7 @@ const AdminLogTab = ({ adminUser }) => {
             </div>
           </div>
           <span className="log-time">
-            {new Date(log.timestamp).toLocaleString('en-NP', {
+            {new Date(log.action_time).toLocaleString('en-NP', {
               day: 'numeric', month: 'short',
               hour: '2-digit', minute: '2-digit',
             })}

@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { flavourData, getPriceByName } from '../../data/flavours';
+import api from '../../api';
 import './Order.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-
-// Single flavour row
+// ── Single flavour row ──
 const OrderRow = ({ row, index, onUpdate, onRemove, showRemove, hasError }) => {
   const handleFlavourChange = (e) => {
     const name  = e.target.value;
@@ -65,9 +64,8 @@ const OrderRow = ({ row, index, onUpdate, onRemove, showRemove, hasError }) => {
   );
 };
 
-
-// Preview modal
-const PreviewModal = ({ isOpen, onClose, orderRows, customerInfo, total, onConfirm, loading }) => {
+// ── Preview modal ──
+const PreviewModal = ({ isOpen, onClose, orderRows, customerInfo, total, onConfirm, loading, submitError }) => {
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
@@ -117,6 +115,13 @@ const PreviewModal = ({ isOpen, onClose, orderRows, customerInfo, total, onConfi
           <span className="modal-total-value">रु{total.toFixed(2)}</span>
         </div>
 
+        {/* Inline error — replaces alert() */}
+        {submitError && (
+          <div className="modal-error">
+            ⚠️ {submitError}
+          </div>
+        )}
+
         <button className="btn-confirm" onClick={onConfirm} disabled={loading}>
           {loading ? '⏳ Placing Order...' : '✅ Confirm & Place Order'}
         </button>
@@ -125,13 +130,24 @@ const PreviewModal = ({ isOpen, onClose, orderRows, customerInfo, total, onConfi
   );
 };
 
-// Order Confirmation Screen
+// ── Order Confirmation Screen ──
 const ConfirmationScreen = ({ order, onPlaceAnother, onGoToDashboard }) => {
   const [countdown, setCountdown] = useState(5);
+  const isMounted = useRef(true);
 
   useEffect(() => {
-    if (countdown <= 0) { onGoToDashboard(); return; }
-    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
+  useEffect(() => {
+    if (countdown <= 0) {
+      if (isMounted.current) onGoToDashboard();
+      return;
+    }
+    const t = setTimeout(() => {
+      if (isMounted.current) setCountdown(c => c - 1);
+    }, 1000);
     return () => clearTimeout(t);
   }, [countdown]);
 
@@ -180,13 +196,15 @@ const ConfirmationScreen = ({ order, onPlaceAnother, onGoToDashboard }) => {
   );
 };
 
-// Main Order page
+// ── Main Order page ──
 const Order = ({ currentUser, setActivePage }) => {
   const [profile,         setProfile]         = useState(null);
   const [profileLoading,  setProfileLoading]  = useState(true);
+  const [profileError,    setProfileError]    = useState('');
   const [orderRows,       setOrderRows]       = useState([{ flavour: '', qty: 1, price: 0 }]);
   const [showModal,       setShowModal]       = useState(false);
   const [loading,         setLoading]         = useState(false);
+  const [submitError,     setSubmitError]     = useState('');
   const [confirmedOrder,  setConfirmedOrder]  = useState(null);
   const [errors,          setErrors]          = useState({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
@@ -194,11 +212,11 @@ const Order = ({ currentUser, setActivePage }) => {
   useEffect(() => {
     if (!currentUser) return;
     setProfileLoading(true);
-    fetch(`${API_BASE}/auth/me`, { headers: { 'X-User-Id': currentUser.id } })
-      .then(r => r.json())
+    setProfileError('');
+    api.get('/auth/me')
       .then(data => setProfile(data))
-      .catch(() => {})
-      .finally(() => setProfileLoading(false));
+      .catch(err  => setProfileError(err.message || 'Could not load profile.'))
+      .finally(()  => setProfileLoading(false));
   }, [currentUser]);
 
   // Re-validate live once user has tried submitting
@@ -212,8 +230,6 @@ const Order = ({ currentUser, setActivePage }) => {
     if (emptyRowIndices.length) e.emptyRows = emptyRowIndices;
     setErrors(e);
   }, [orderRows, submitAttempted]);
-
-  // ── Conditional renders AFTER all hooks ──
 
   if (!currentUser) {
     return (
@@ -236,6 +252,7 @@ const Order = ({ currentUser, setActivePage }) => {
           setOrderRows([{ flavour: '', qty: 1, price: 0 }]);
           setErrors({});
           setSubmitAttempted(false);
+          setSubmitError('');
         }}
         onGoToDashboard={() => setActivePage?.('dashboard')}
       />
@@ -264,35 +281,27 @@ const Order = ({ currentUser, setActivePage }) => {
 
   const handleReview = () => {
     setSubmitAttempted(true);
-    if (validate()) setShowModal(true);
+    if (validate()) {
+      setSubmitError('');
+      setShowModal(true);
+    }
   };
 
   const handlePlaceOrder = async () => {
     setLoading(true);
-    const payload = {
-      business: currentUser.business,
-      items: orderRows
-        .filter(r => r.flavour)
-        .map(r => ({ item_name: r.flavour, quantity: r.qty, price: r.price })),
-    };
-
+    setSubmitError('');
     try {
-      const response = await fetch(`${API_BASE}/orders/place`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'X-User-Id': currentUser.id },
-        body:    JSON.stringify(payload),
+      const result = await api.post('/orders/place', {
+        business: currentUser.business,
+        items: orderRows
+          .filter(r => r.flavour)
+          .map(r => ({ item_name: r.flavour, quantity: r.qty, price: r.price })),
       });
-
-      if (response.ok) {
-        const result = await response.json();
-        setShowModal(false);
-        setConfirmedOrder(result);
-      } else {
-        const err = await response.json();
-        alert(`Error: ${JSON.stringify(err)}`);
-      }
-    } catch {
-      alert('Cannot reach server. Is the backend running?');
+      setShowModal(false);
+      setConfirmedOrder(result);
+    } catch (err) {
+      // Shown inline inside the modal — no alert()
+      setSubmitError(err.message || 'Could not place order. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -323,6 +332,8 @@ const Order = ({ currentUser, setActivePage }) => {
                   </div>
                 ))}
               </div>
+            ) : profileError ? (
+              <p className="profile-error">{profileError}</p>
             ) : business ? (
               <div className="prefill-grid">
                 {[
@@ -401,6 +412,7 @@ const Order = ({ currentUser, setActivePage }) => {
         total={total}
         onConfirm={handlePlaceOrder}
         loading={loading}
+        submitError={submitError}
       />
     </div>
   );

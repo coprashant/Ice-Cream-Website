@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import api from '../../api';
 import './Dashboard.css';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 // ─────────────────────────────────────────────
 // Skeleton
@@ -264,14 +263,13 @@ const Dashboard = ({ currentUser, setActivePage, onLogout, onProfileUpdate }) =>
   const [profile,      setProfile]      = useState(null);
   const [orders,       setOrders]       = useState([]);
   const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState('');
   const [reorderMsg,   setReorderMsg]   = useState('');
+  const [reorderError, setReorderError] = useState('');
   const [activeTab,    setActiveTab]    = useState('overview');
   const [filterStatus, setFilterStatus] = useState('All');
   const [showWelcome,  setShowWelcome]  = useState(false);
 
-  const headers = { 'X-User-Id': currentUser.id };
-
-  // Show welcome banner only on first-ever login per user
   useEffect(() => {
     const key = `welcomed_${currentUser.id}`;
     if (!localStorage.getItem(key)) setShowWelcome(true);
@@ -285,56 +283,51 @@ const Dashboard = ({ currentUser, setActivePage, onLogout, onProfileUpdate }) =>
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setError('');
       try {
-        const [meRes, ordRes] = await Promise.all([
-          fetch(`${API_BASE}/auth/me`,          { headers }),
-          fetch(`${API_BASE}/orders/my-orders`, { headers }),
+        const [me, ord] = await Promise.all([
+          api.get('/auth/me'),
+          api.get('/orders/my-orders'),
         ]);
-        const [me, ord] = await Promise.all([meRes.json(), ordRes.json()]);
         setProfile(me);
         setOrders(ord);
-      } catch { /* show empty state */ }
-      finally  { setLoading(false); }
+      } catch (err) {
+        setError(err.message || 'Failed to load dashboard. Please refresh.');
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, [currentUser.id]);
 
   const handleCancel = async (orderId) => {
     try {
-      const res = await fetch(`${API_BASE}/orders/${orderId}/cancel`, {
-        method:  'PATCH',
-        headers: { 'Content-Type': 'application/json', 'X-User-Id': currentUser.id },
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
-        return true;
-      }
-      return false;
+      const updated = await api.patch(`/orders/${orderId}/cancel`, {});
+      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      return true;
     } catch {
       return false;
     }
   };
 
   const handleReorder = async (order) => {
+    setReorderError('');
     try {
-      const res = await fetch(`${API_BASE}/orders/place`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'X-User-Id': currentUser.id },
-        body: JSON.stringify({
-          business: currentUser.business,
-          items: order.items.map(i => ({
-            item_name: i.item_name, quantity: i.quantity, price: parseFloat(i.price),
-          })),
-        }),
+      const newOrder = await api.post('/orders/place', {
+        business: currentUser.business,
+        items: order.items.map(i => ({
+          item_name: i.item_name,
+          quantity:  i.quantity,
+          price:     parseFloat(i.price),
+        })),
       });
-      if (res.ok) {
-        const newOrder = await res.json();
-        setOrders(prev => [newOrder, ...prev]);
-        setReorderMsg(`✅ Reorder placed! Order #${newOrder.id}`);
-        setTimeout(() => setReorderMsg(''), 4000);
-      } else { alert('Reorder failed.'); }
-    } catch { alert('Cannot reach server.'); }
+      setOrders(prev => [newOrder, ...prev]);
+      setReorderMsg(`✅ Reorder placed! Order #${newOrder.id}`);
+      setTimeout(() => setReorderMsg(''), 4000);
+    } catch (err) {
+      setReorderError(err.message || 'Reorder failed. Please try again.');
+      setTimeout(() => setReorderError(''), 4000);
+    }
   };
 
   const business       = profile?.business_details;
@@ -358,11 +351,26 @@ const Dashboard = ({ currentUser, setActivePage, onLogout, onProfileUpdate }) =>
 
   if (loading) return <div className="dashboard-page"><DashboardSkeleton /></div>;
 
+  if (error) {
+    return (
+      <div className="dashboard-page">
+        <div className="dashboard-container">
+          <div className="dash-error">
+            <span>⚠️</span>
+            <p>{error}</p>
+            <button className="btn-primary-dash" onClick={() => window.location.reload()}>
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-page">
       <div className="dashboard-container">
 
-        {/* First-login welcome */}
         {showWelcome && (
           <WelcomeBanner
             name={business?.contact_person || currentUser.username}
@@ -370,7 +378,6 @@ const Dashboard = ({ currentUser, setActivePage, onLogout, onProfileUpdate }) =>
           />
         )}
 
-        {/* Header — no action buttons, just name + business */}
         <div className="dash-header">
           <span className="section-eyebrow">My Dashboard</span>
           <h1 className="dash-title">
@@ -379,10 +386,9 @@ const Dashboard = ({ currentUser, setActivePage, onLogout, onProfileUpdate }) =>
           <p className="dash-subtitle">{business?.name}</p>
         </div>
 
-        {/* Reorder success banner */}
-        {reorderMsg && <div className="reorder-banner">{reorderMsg}</div>}
+        {reorderMsg   && <div className="reorder-banner">{reorderMsg}</div>}
+        {reorderError && <div className="reorder-banner reorder-banner-error">{reorderError}</div>}
 
-        {/* Stats — accent on Total Spent */}
         <div className="stats-grid">
           <div className="stat-card stat-card-accent">
             <span className="stat-icon">💰</span>
@@ -420,7 +426,6 @@ const Dashboard = ({ currentUser, setActivePage, onLogout, onProfileUpdate }) =>
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="dash-tabs">
           {[
             { id: 'overview', label: '📊 Overview' },
@@ -437,7 +442,6 @@ const Dashboard = ({ currentUser, setActivePage, onLogout, onProfileUpdate }) =>
           ))}
         </div>
 
-        {/* ── Overview ── */}
         {activeTab === 'overview' && (
           <div className="tab-content">
             {orders.length === 0 ? (
@@ -483,7 +487,6 @@ const Dashboard = ({ currentUser, setActivePage, onLogout, onProfileUpdate }) =>
           </div>
         )}
 
-        {/* ── Orders ── */}
         {activeTab === 'orders' && (
           <div className="tab-content">
             <div className="filter-bar">
@@ -504,21 +507,25 @@ const Dashboard = ({ currentUser, setActivePage, onLogout, onProfileUpdate }) =>
                 <span>📦</span>
                 <p>
                   {filterStatus === 'All'
-                    ? "No orders yet."
+                    ? 'No orders yet.'
                     : `No ${filterStatus.toLowerCase()} orders.`}
                 </p>
               </div>
             ) : (
               <div className="orders-list">
                 {filteredOrders.map(order => (
-                  <OrderCard key={order.id} order={order} onReorder={handleReorder} onCancel={handleCancel} />
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    onReorder={handleReorder}
+                    onCancel={handleCancel}
+                  />
                 ))}
               </div>
             )}
           </div>
         )}
 
-        {/* ── Profile ── */}
         {activeTab === 'profile' && (
           <div className="tab-content">
             <div className="dash-card profile-card">

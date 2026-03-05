@@ -1,7 +1,11 @@
 from django.contrib.auth.hashers import check_password, make_password
-from rest_framework.views     import APIView
-from rest_framework.response  import Response
-from rest_framework           import status
+from rest_framework.views       import APIView
+from rest_framework.response    import Response
+from rest_framework             import status
+from rest_framework.permissions import IsAuthenticated, AllowAny
+
+from rest_framework_simplejwt.tokens     import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 
 from .models      import User, Order, Business, AdminLog
 from .serializers import (
@@ -12,14 +16,35 @@ from .serializers import (
 )
 
 
-def get_user_from_request(request):
-    user_id = request.headers.get('X-User-Id')
-    if not user_id:
+# ------------------------------------------------------------------
+# Helper — get the authenticated User from the JWT-verified request
+# ------------------------------------------------------------------
+
+def get_authed_user(request):
+    """
+    Returns the User model instance for the JWT-authenticated request.
+    DRF's JWTAuthentication sets request.user to a token-backed AnonymousUser
+    unless the token is valid, so we look up by the claim's user_id.
+    """
+    if not request.user or not request.user.is_authenticated:
         return None
     try:
-        return User.objects.select_related('business').get(id=user_id)
+        return User.objects.select_related('business').get(id=request.user.id)
     except User.DoesNotExist:
         return None
+
+
+def jwt_response(user):
+    """Build the standard login/register response with tokens + user data."""
+    refresh = RefreshToken.for_user(user)
+    # Embed role into the token so the frontend can read it without a round-trip
+    refresh['role']     = user.role
+    refresh['username'] = user.username
+    return {
+        'access':  str(refresh.access_token),
+        'refresh': str(refresh),
+        'user':    UserSerializer(user).data,
+    }
 
 
 # ------------------------------------------------------------------
@@ -27,7 +52,8 @@ def get_user_from_request(request):
 # ------------------------------------------------------------------
 
 class LoginView(APIView):
-    """POST /api/auth/login"""
+    """POST /api/auth/login  — public"""
+    permission_classes = [AllowAny]
 
     def post(self, request):
         username = request.data.get('username', '').strip()
@@ -53,16 +79,12 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
+        return Response(jwt_response(user), status=status.HTTP_200_OK)
 
 
 class RegisterView(APIView):
-    """
-    POST /api/auth/register
-    Creates a Business and a linked Customer user in one step.
-    Only CUSTOMER accounts can be registered this way.
-    Admin accounts must be created manually via the Django shell.
-    """
+    """POST /api/auth/register  — public"""
+    permission_classes = [AllowAny]
 
     def post(self, request):
         username       = request.data.get('username', '').strip()
@@ -106,36 +128,70 @@ class RegisterView(APIView):
             business      = business,
         )
 
-        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+        return Response(jwt_response(user), status=status.HTTP_201_CREATED)
 
 
-class MeView(APIView):
-    """GET /api/auth/me"""
+class RefreshTokenView(APIView):
+    """POST /api/auth/refresh  — public (takes refresh token, returns new access token)"""
+    permission_classes = [AllowAny]
 
-    def get(self, request):
-        user = get_user_from_request(request)
-
-        if not user:
+    def post(self, request):
+        token_str = request.data.get('refresh', '')
+        if not token_str:
             return Response(
-                {'error': 'Authentication required.'},
+                {'error': 'Refresh token required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            refresh = RefreshToken(token_str)
+            return Response(
+                {'access': str(refresh.access_token)},
+                status=status.HTTP_200_OK,
+            )
+        except TokenError:
+            return Response(
+                {'error': 'Invalid or expired refresh token. Please log in again.'},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
+
+class LogoutView(APIView):
+    """POST /api/auth/logout  — authenticated"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # With BLACKLIST_AFTER_ROTATION=False we just acknowledge logout.
+        # The frontend drops the tokens from storage. Access tokens expire in 8h.
+        # To fully invalidate server-side, enable simplejwt's token_blacklist app
+        # and set BLACKLIST_AFTER_ROTATION=True.
+        return Response({'detail': 'Logged out.'}, status=status.HTTP_200_OK)
+
+
+class MeView(APIView):
+    """GET /api/auth/me  — authenticated"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = get_authed_user(request)
+        if not user:
+            return Response(
+                {'error': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
 
 
 class UpdateProfileView(APIView):
-    """PATCH /api/auth/me/update"""
+    """PATCH /api/auth/me/update  — authenticated"""
+    permission_classes = [IsAuthenticated]
 
     def patch(self, request):
-        user = get_user_from_request(request)
-
+        user = get_authed_user(request)
         if not user:
             return Response(
-                {'error': 'Authentication required.'},
-                status=status.HTTP_401_UNAUTHORIZED,
+                {'error': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND,
             )
-
         if not user.business:
             return Response(
                 {'error': 'No business linked to this account.'},
@@ -144,12 +200,11 @@ class UpdateProfileView(APIView):
 
         business = user.business
         updatable_fields = ['contact_person', 'phone', 'email', 'address', 'name']
-
         for field in updatable_fields:
             if field in request.data:
                 setattr(business, field, request.data[field])
-
         business.save()
+
         return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
 
 
@@ -158,17 +213,16 @@ class UpdateProfileView(APIView):
 # ------------------------------------------------------------------
 
 class BusinessListView(APIView):
-    """GET /api/businesses/ — Admin only"""
+    """GET /api/businesses/  — admin only"""
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = get_user_from_request(request)
-
+        user = get_authed_user(request)
         if not user or not user.is_admin:
             return Response(
                 {'error': 'Admin access required.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
-
         businesses = Business.objects.all()
         return Response(BusinessSerializer(businesses, many=True).data)
 
@@ -183,14 +237,14 @@ class OrderListView(APIView):
     Admins see all orders. Customers see only their own.
     Supports ?status= and ?business_id= filters.
     """
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = get_user_from_request(request)
-
+        user = get_authed_user(request)
         if not user:
             return Response(
-                {'error': 'Authentication required.'},
-                status=status.HTTP_401_UNAUTHORIZED,
+                {'error': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         orders = Order.objects.select_related('business').prefetch_related('items')
@@ -210,15 +264,15 @@ class OrderListView(APIView):
 
 
 class MyOrdersView(APIView):
-    """GET /api/orders/my-orders"""
+    """GET /api/orders/my-orders  — authenticated customer"""
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = get_user_from_request(request)
-
+        user = get_authed_user(request)
         if not user:
             return Response(
-                {'error': 'Authentication required.'},
-                status=status.HTTP_401_UNAUTHORIZED,
+                {'error': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         orders = (
@@ -228,34 +282,43 @@ class MyOrdersView(APIView):
             .prefetch_related('items')
             .order_by('-order_date')
         )
-
         return Response(OrderSerializer(orders, many=True).data)
 
 
 class PlaceOrderView(APIView):
-    """POST /api/orders/place"""
+    """POST /api/orders/place  — authenticated"""
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = OrderSerializer(data=request.data)
+        user = get_authed_user(request)
+        if not user:
+            return Response(
+                {'error': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
+        # Customers can only place orders for their own business
+        if not user.is_admin:
+            request.data['business'] = user.business.id
+
+        serializer = OrderSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         order = serializer.save()
 
-        user = get_user_from_request(request)
-        if user and user.is_admin:
+        if user.is_admin:
             AdminLog.record(user, f'Placed order #{order.id} for business #{order.business_id}')
 
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 
 class UpdateOrderStatusView(APIView):
-    """PATCH /api/orders/<order_id>/status — Admin only"""
+    """PATCH /api/orders/<order_id>/status  — admin only"""
+    permission_classes = [IsAuthenticated]
 
     def patch(self, request, order_id):
-        user = get_user_from_request(request)
-
+        user = get_authed_user(request)
         if not user or not user.is_admin:
             return Response(
                 {'error': 'Admin access required.'},
@@ -291,17 +354,17 @@ class UpdateOrderStatusView(APIView):
 class CancelOrderView(APIView):
     """
     PATCH /api/orders/<order_id>/cancel
-    Allows a customer to cancel their own Pending order.
-    Admins can cancel any order.
+    Customers: cancel their own Pending orders only.
+    Admins: cancel any order.
     """
+    permission_classes = [IsAuthenticated]
 
     def patch(self, request, order_id):
-        user = get_user_from_request(request)
-
+        user = get_authed_user(request)
         if not user:
             return Response(
-                {'error': 'Authentication required.'},
-                status=status.HTTP_401_UNAUTHORIZED,
+                {'error': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         try:
@@ -309,14 +372,12 @@ class CancelOrderView(APIView):
         except Order.DoesNotExist:
             return Response({'error': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Customers can only cancel their own orders
         if not user.is_admin and order.business != user.business:
             return Response(
                 {'error': 'You can only cancel your own orders.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Only Pending orders can be cancelled by customers
         if not user.is_admin and order.status != Order.Status.PENDING:
             return Response(
                 {'error': 'Only pending orders can be cancelled.'},
@@ -343,28 +404,27 @@ class CancelOrderView(APIView):
 # ------------------------------------------------------------------
 
 class AdminStatsView(APIView):
-    """GET /api/admin/stats/ — Admin only"""
+    """GET /api/admin/stats/  — admin only"""
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from django.db.models import Sum, Count
+        from django.db.models import Sum
         from django.utils     import timezone
-        import datetime
 
-        user = get_user_from_request(request)
-
+        user = get_authed_user(request)
         if not user or not user.is_admin:
             return Response(
                 {'error': 'Admin access required.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        now        = timezone.now()
-        today      = now.date()
+        now         = timezone.now()
+        today       = now.date()
         month_start = today.replace(day=1)
 
-        total_orders    = Order.objects.count()
-        pending_count   = Order.objects.filter(status=Order.Status.PENDING).count()
-        confirmed_count = Order.objects.filter(status=Order.Status.CONFIRMED).count()
+        total_orders     = Order.objects.count()
+        pending_count    = Order.objects.filter(status=Order.Status.PENDING).count()
+        confirmed_count  = Order.objects.filter(status=Order.Status.CONFIRMED).count()
         total_businesses = Business.objects.count()
 
         revenue_today = (
@@ -382,12 +442,12 @@ class AdminStatsView(APIView):
         )
 
         return Response({
-            'total_orders':      total_orders,
-            'pending_count':     pending_count,
-            'confirmed_count':   confirmed_count,
-            'total_businesses':  total_businesses,
-            'revenue_today':     float(revenue_today),
-            'revenue_month':     float(revenue_month),
+            'total_orders':     total_orders,
+            'pending_count':    pending_count,
+            'confirmed_count':  confirmed_count,
+            'total_businesses': total_businesses,
+            'revenue_today':    float(revenue_today),
+            'revenue_month':    float(revenue_month),
         })
 
 
@@ -396,11 +456,11 @@ class AdminStatsView(APIView):
 # ------------------------------------------------------------------
 
 class AdminLogView(APIView):
-    """GET /api/admin/logs/ — Admin only"""
+    """GET /api/admin/logs/  — admin only"""
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = get_user_from_request(request)
-
+        user = get_authed_user(request)
         if not user or not user.is_admin:
             return Response(
                 {'error': 'Admin access required.'},

@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import api from '../api';
 import './Header.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
-// ─────────────────────────────────────────────
 // Auth Modal — Login / Register
-// ─────────────────────────────────────────────
 const AuthModal = ({ onClose, onLogin }) => {
   const [screen,      setScreen]  = useState('login');
   const [loginForm,   setLogin]   = useState({ username: '', password: '' });
@@ -178,10 +177,7 @@ const AuthModal = ({ onClose, onLogin }) => {
   );
 };
 
-// ─────────────────────────────────────────────
 // Edit Profile Modal
-// Reuses the same auth-overlay/auth-modal CSS — no new classes needed.
-// ─────────────────────────────────────────────
 const EditProfileModal = ({ currentUser, onClose, onSave }) => {
   const biz = currentUser?.business_details;
   const [form,    setForm]    = useState({
@@ -202,14 +198,9 @@ const EditProfileModal = ({ currentUser, onClose, onSave }) => {
     setLoading(true);
     setError('');
     try {
-      const res  = await fetch(`${API_BASE}/auth/me/update`, {
-        method:  'PATCH',
-        headers: { 'Content-Type': 'application/json', 'X-User-Id': currentUser.id },
-        body:    JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (res.ok) { onSave(data); onClose(); }
-      else setError(data.error || 'Update failed.');
+      const updatedUser = await api.patch('/auth/me/update', form);
+      onSave(updatedUser);
+      onClose();
     } catch {
       setError('Cannot reach server.');
     } finally {
@@ -273,9 +264,7 @@ const EditProfileModal = ({ currentUser, onClose, onSave }) => {
   );
 };
 
-// ─────────────────────────────────────────────
 // User dropdown (shown when logged in)
-// ─────────────────────────────────────────────
 const UserDropdown = ({ currentUser, onNavigate, onLogout, onEditProfile }) => {
   const [open, setOpen] = useState(false);
   const ref             = useRef(null);
@@ -341,9 +330,7 @@ const UserDropdown = ({ currentUser, onNavigate, onLogout, onEditProfile }) => {
   );
 };
 
-// ─────────────────────────────────────────────
 // Header
-// ─────────────────────────────────────────────
 const Header = ({ activePage, setActivePage, currentUser, onLogin, onLogout, onProfileUpdate }) => {
   const { isDark, toggleTheme } = useTheme();
   const [scrolled,     setScrolled]     = useState(false);
