@@ -22,7 +22,7 @@ INSTALLED_APPS = [
     'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
     'rest_framework',
-    'rest_framework_simplejwt', 
+    'rest_framework_simplejwt',
     'icecream_api',
 ]
 
@@ -58,13 +58,22 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'icecream_project.wsgi.application'
 
+# ── Database ──
+
+_DATABASE_URL = os.getenv('DATABASE_URL')
+_IS_REMOTE_DB = bool(_DATABASE_URL)
+
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.getenv('DATABASE_URL'),
+        default=_DATABASE_URL or (
+            f"postgres://{os.getenv('DB_USER', 'postgres')}:"
+            f"{os.getenv('DB_PASSWORD', '')}@"
+            f"{os.getenv('DB_HOST', 'localhost')}:"
+            f"{os.getenv('DB_PORT', '5432')}/"
+            f"{os.getenv('DB_NAME', 'icecream_db')}"
+        ),
         conn_max_age=600,
-        
-        # Turn on for cloud
-        ssl_require=True               
+        ssl_require=_IS_REMOTE_DB,   # True in production, False locally
     )
 }
 
@@ -75,14 +84,13 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     "authorization",
 ]
 
-# ── REST Framework — JWT authentication ──
+# ── REST Framework ──
+
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': [],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
