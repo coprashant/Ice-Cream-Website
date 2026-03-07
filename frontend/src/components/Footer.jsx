@@ -25,13 +25,13 @@ const Footer = ({ setActivePage, currentUser }) => {
         </div>
 
         <div className="footer-contact">
-          <a href="tel:+9779841550000">📞 9841550000</a>
+          <a href="tel:+9779841550000">📞 98xxxxxxxx</a>
           <a href="mailto:sheetal.icecream@gmail.com">✉️ sheetal.icecream@gmail.com</a>
           <span>📍 Gokarneshwor-8, Kathmandu</span>
         </div>
       </div>
       <div className="footer-bottom">
-        <p>© 2025 Sheetal Ice-Cream Udhyog · All Rights Reserved</p>
+        <p>© 2026 Sheetal Ice-Cream Udhyog · All Rights Reserved</p>
       </div>
     </footer>
   );

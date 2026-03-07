@@ -29,13 +29,13 @@ const Contact = () => {
               <ContactItem
                 icon="📱"
                 label="Phone 1"
-                value="9841550000"
+                value="98xxxxxxxx"
                 href="tel:+9779841550000"
               />
               <ContactItem
                 icon="📱"
                 label="Phone 2"
-                value="9861187473"
+                value="98xxxxxxxx"
                 href="tel:+9779861187473"
               />
               <ContactItem
@@ -47,8 +47,8 @@ const Contact = () => {
               <ContactItem
                 icon="📘"
                 label="Facebook"
-                value="Indira Bhattarai Karki"
-                href="https://www.facebook.com/indira.bhattaraikarki"
+                value="Prasant Bhattarai"
+                href="https://www.facebook.com"
               />
             </div>
           </div>
@@ -58,7 +58,7 @@ const Contact = () => {
             <div className="location-display">
               <div className="location-pin">📌</div>
               <div className="location-text">
-                <p className="location-main">Prakritinagar, Gokarneshwor-8</p>
+                <p className="location-main">Gokarneshwor-8</p>
                 <p className="location-secondary">Kathmandu, Nepal</p>
               </div>
             </div>
