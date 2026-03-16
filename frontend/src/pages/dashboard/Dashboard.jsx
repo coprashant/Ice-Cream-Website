@@ -6,9 +6,8 @@ import {
 import api from '../../api';
 import './Dashboard.css';
 
-// ─────────────────────────────────────────────
+
 // SVG Icons
-// ─────────────────────────────────────────────
 const IconMoney   = () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
 const IconBox     = () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>;
 const IconClock   = () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
@@ -23,9 +22,7 @@ const IconMail    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="
 const IconPin     = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>;
 const IconCal     = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
 
-// ─────────────────────────────────────────────
 // Skeleton
-// ─────────────────────────────────────────────
 const DashboardSkeleton = () => (
   <div className="dashboard-container">
     <div style={{ marginBottom: '32px' }}>
@@ -44,9 +41,7 @@ const DashboardSkeleton = () => (
   </div>
 );
 
-// ─────────────────────────────────────────────
 // Welcome Banner
-// ─────────────────────────────────────────────
 const WelcomeBanner = ({ name, onDismiss }) => (
   <div className="welcome-banner">
     <div className="welcome-banner-left">
@@ -60,9 +55,7 @@ const WelcomeBanner = ({ name, onDismiss }) => (
   </div>
 );
 
-// ─────────────────────────────────────────────
 // Status Stepper
-// ─────────────────────────────────────────────
 const STATUS_STEPS = ['Pending', 'Confirmed', 'Completed'];
 const STEP_LABELS  = { Pending: 'Received', Confirmed: 'Confirmed', Completed: 'Delivered' };
 
@@ -102,17 +95,14 @@ const StatusStepper = ({ status }) => {
   );
 };
 
-// ─────────────────────────────────────────────
+
 // Status Badge
-// ─────────────────────────────────────────────
 const StatusBadge = ({ status }) => {
   const map = { Pending: 'badge-pending', Confirmed: 'badge-confirmed', Completed: 'badge-completed', Cancelled: 'badge-cancelled' };
   return <span className={`status-badge ${map[status] || ''}`}>{status}</span>;
 };
 
-// ─────────────────────────────────────────────
 // Monthly Spending Bar Chart
-// ─────────────────────────────────────────────
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 const buildMonthlyData = (orders) => {
@@ -152,9 +142,7 @@ const SpendingChart = ({ orders }) => {
   );
 };
 
-// ─────────────────────────────────────────────
 // Flavour Donut
-// ─────────────────────────────────────────────
 const DONUT_COLORS = ['var(--accent-primary)', '#f97316', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
 
 const buildFlavourData = (orders) => {
@@ -189,9 +177,7 @@ const FlavourDonut = ({ orders }) => {
   );
 };
 
-// ─────────────────────────────────────────────
 // Quick Reorder Widget
-// ─────────────────────────────────────────────
 const QuickReorderWidget = ({ orders, onReorder }) => {
   const lastOrder = orders.find(o => o.status !== 'Cancelled');
   const topItems  = useMemo(() => {
@@ -239,9 +225,7 @@ const QuickReorderWidget = ({ orders, onReorder }) => {
   );
 };
 
-// ─────────────────────────────────────────────
 // Order Card
-// ─────────────────────────────────────────────
 const OrderCard = ({ order, onReorder, onCancel }) => {
   const [expanded,    setExpanded]    = useState(false);
   const [cancelling,  setCancelling]  = useState(false);
@@ -302,9 +286,9 @@ const OrderCard = ({ order, onReorder, onCancel }) => {
   );
 };
 
-// ─────────────────────────────────────────────
+
 // Spending Trend Helper
-// ─────────────────────────────────────────────
+
 const getSpendingTrend = (orders) => {
   const now       = new Date();
   const thisMonth = now.getMonth(), thisYear = now.getFullYear();
@@ -318,9 +302,7 @@ const getSpendingTrend = (orders) => {
   return { pct, up: diff >= 0 };
 };
 
-// ─────────────────────────────────────────────
 // Dashboard
-// ─────────────────────────────────────────────
 const Dashboard = ({ currentUser, setActivePage, onLogout, onProfileUpdate }) => {
   const [profile,      setProfile]      = useState(null);
   const [orders,       setOrders]       = useState([]);

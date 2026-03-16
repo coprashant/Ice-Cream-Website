@@ -30,13 +30,13 @@ const Contact = () => {
                 icon="📱"
                 label="Phone 1"
                 value="98xxxxxxxx"
-                href="tel:+9779841550000"
+                href="tel:+9779811111111"
               />
               <ContactItem
                 icon="📱"
                 label="Phone 2"
                 value="98xxxxxxxx"
-                href="tel:+9779861187473"
+                href="tel:+9779800000000"
               />
               <ContactItem
                 icon="✉️"
@@ -58,7 +58,7 @@ const Contact = () => {
             <div className="location-display">
               <div className="location-pin">📌</div>
               <div className="location-text">
-                <p className="location-main">Gokarneshwor-8</p>
+                <p className="location-main">Thapathali</p>
                 <p className="location-secondary">Kathmandu, Nepal</p>
               </div>
             </div>
