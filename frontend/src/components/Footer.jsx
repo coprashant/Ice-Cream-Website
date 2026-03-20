@@ -29,9 +29,15 @@ const Footer = ({ setActivePage, currentUser }) => {
           <div className="footer-logo">
             <img src="/logo.png" alt="Sheetal Ice Cream" />
           </div>
-          <div>
+          <div className="footer-brand-details">
             <div className="footer-brand-name">Sheetal Ice Cream</div>
             <div className="footer-tagline">Made with love in Kathmandu</div>
+            <div className='developer-link'>
+              <span>Meet the Developer: </span>
+              <a href="https://www.prasant-bhattarai.com.np" target="_blank" rel="noopener noreferrer">
+                  Prasant Bhattarai
+              </a>
+              </div>
           </div>
         </div>
 
@@ -45,20 +51,20 @@ const Footer = ({ setActivePage, currentUser }) => {
         </div>
 
         <div className="footer-contact">
-          <a href="tel:+9779841550000">
+          <a href="tel:+9779800000000">
             <IconPhone /> 98xxxxxxxx
           </a>
           <a href="mailto:sheetal.icecream@gmail.com">
             <IconMail /> sheetal.icecream@gmail.com
           </a>
           <span>
-            <IconPin /> Gokarneshwor-8, Kathmandu
+            <IconPin /> Thapathali, Kathmandu
           </span>
         </div>
       </div>
 
       <div className="footer-bottom">
-        <p>© 2026 Sheetal Ice-Cream Udhyog · All Rights Reserved</p>
+        <p>© 2026 Sheetal Ice-Cream · All Rights Reserved</p>
       </div>
     </footer>
   );

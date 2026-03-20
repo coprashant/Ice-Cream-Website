@@ -2,6 +2,20 @@
 
 A B2B ordering platform for Sheetal Ice-Cream Udhyog. Registered businesses log in, browse the flavour catalogue, and place bulk orders. Admins manage orders, businesses, and status updates from a central dashboard.
 
+*Visit: [Sheetal Ice-Cream](https://sheetalicecream.vercel.app/)*
+
+---
+
+## Quick Look
+### Home
+![Home](screenshots/home.png)
+
+### Admin
+![Admin](screenshots/admin.png)
+
+### Dashboard
+![Dashboard](screenshots/dashboard.png)
+
 ---
 
 ## Tech Stack

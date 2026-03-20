@@ -60,6 +60,12 @@
   border-radius: 4px;
 }
 
+.footer-brand-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px; 
+}
+
 .footer-brand-name {
   font-family: 'Playfair Display', serif;
   font-size: 1.05rem;
@@ -75,6 +81,48 @@
   font-weight: 400;
   color: rgba(255, 255, 255, 0.45);
   letter-spacing: 0.02em;
+}
+
+.developer-link {
+  margin-top: 10px; 
+  margin-left: -20%;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.95); 
+}
+
+.developer-link a {
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none;
+  position: relative;
+  transition: color 0.15s;
+  padding-bottom: 2px;
+}
+
+.developer-link a::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--accent-primary);
+  transition: width 0.2s ease;
+}
+
+.developer-link a:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.developer-link a:hover::after {
+  width: 100%;
+}
+
+@media (max-width: 480px) {
+  .footer-brand-details {
+    align-items: flex-start; 
+  }
 }
 
 /* Links column */

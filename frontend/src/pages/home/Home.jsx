@@ -246,14 +246,14 @@ const Home = ({ setActivePage }) => {
       <div className="info-strip">
         <div className="info-item">
           <IconPin />
-          <span>Prakritinagar, Gokarneshwor-8, Kathmandu</span>
+          <span>Thapathali, Kathmandu</span>
         </div>
         <div className="info-divider" />
         <div className="info-item">
           <IconPhone />
-          <a href="tel:+9779841550000">9841550000</a>
+          <a href="tel:+9779800000000">9800000000</a>
           <span>/</span>
-          <a href="tel:+9779861187473">9861187473</a>
+          <a href="tel:+9779811111111">9811111111</a>
         </div>
         <div className="info-divider" />
         <div className="info-item">
