@@ -167,7 +167,7 @@ const FlavourDonut = ({ orders }) => {
   return (
     <ResponsiveContainer width="100%" height={180}>
       <PieChart>
-        <Pie data={data} cx="50%" cy="44%" innerRadius={44} outerRadius={68} paddingAngle={3} dataKey="value" strokeWidth={0}>
+        <Pie data={data} cx="50%" cy="48%" innerRadius={44} outerRadius={65} paddingAngle={3} dataKey="value" strokeWidth={0}>
           {data.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
         </Pie>
         <Tooltip content={<DonutTooltip />} />
@@ -545,7 +545,7 @@ const Dashboard = ({ currentUser, setActivePage, onLogout, onProfileUpdate }) =>
             <div className="dash-card profile-card">
               <div className="dash-card-header">
                 <h3>Business Details</h3>
-                <p className="profile-edit-hint">Edit via the account menu in the top bar</p>
+                <p className="profile-edit-hint">Edit via the account menu in the top-right bar</p>
               </div>
               <div className="profile-detail-grid">
                 {profileFields.map(({ label, value, icon }) => (

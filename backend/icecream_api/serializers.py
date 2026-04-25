@@ -1,5 +1,6 @@
 from django.contrib.auth.hashers import make_password
-from rest_framework import serializers
+from rest_framework              import serializers
+
 from .models import Business, User, Order, OrderItem, AdminLog
 
 
@@ -51,16 +52,32 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
-    items         = OrderItemSerializer(many=True)
-    business_name = serializers.CharField(source='business.name', read_only=True)
+    items                  = OrderItemSerializer(many=True)
+    business_name          = serializers.CharField(source='business.name', read_only=True)
+
+    # payment_screenshot exposed as a URL string for the frontend and admin panel
+    payment_screenshot_url = serializers.SerializerMethodField()
 
     class Meta:
         model  = Order
         fields = [
             'id', 'business', 'business_name',
-            'order_date', 'status', 'total_amount', 'email_sent', 'items',
+            'order_date', 'status', 'total_amount', 'email_sent',
+            'payment_done', 'payment_screenshot_url',
+            'items',
         ]
-        read_only_fields = ['id', 'order_date', 'total_amount', 'email_sent', 'business_name']
+        read_only_fields = [
+            'id', 'order_date', 'total_amount', 'email_sent',
+            'business_name', 'payment_screenshot_url',
+        ]
+
+    def get_payment_screenshot_url(self, obj):
+        if not obj.payment_screenshot:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.payment_screenshot.url)
+        return obj.payment_screenshot.url
 
     def validate_items(self, value):
         if not value:
@@ -100,4 +117,4 @@ class AdminLogSerializer(serializers.ModelSerializer):
     class Meta:
         model  = AdminLog
         fields = ['id', 'admin_username', 'action', 'action_time']
-        read_only_fields = fields
+        read_only_fields = ['id', 'admin_username', 'action', 'action_time']

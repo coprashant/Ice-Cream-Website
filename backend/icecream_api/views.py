@@ -1,4 +1,9 @@
+import json
+import re
+
 from django.contrib.auth.hashers import check_password, make_password
+from django.db.models            import Sum
+
 from rest_framework.views       import APIView
 from rest_framework.response    import Response
 from rest_framework             import status
@@ -16,26 +21,27 @@ from .serializers import (
 )
 
 
+# NOTE: every view sets permission_classes = [AllowAny] because DRF authentication
+# backends are not configured for our custom User model. Authentication is enforced
+# manually via require_auth() and require_admin() helpers below. DRF's own auth layer
+# is intentionally bypassed.
+
+
 # ------------------------------------------------------------------
-# Custom JWT auth helper
+# JWT helpers
 # ------------------------------------------------------------------
-# simplejwt's built-in JWTAuthentication looks up users via
-# Django's auth.User model. Since we use a custom User model
-# in a separate table, we decode the token ourselves and look up
-# our own User model by the user_id claim.
 
 def get_user_from_token(request):
     """
-    Decodes the Bearer token from the Authorization header and returns
-    the matching User from our custom users table, or None.
+    Decodes the Bearer token and returns the matching User, or None.
+    Validates signature and expiry via simplejwt AccessToken.
     """
     auth_header = request.headers.get('Authorization', '')
     if not auth_header.startswith('Bearer '):
         return None
-
     raw_token = auth_header.split(' ', 1)[1]
     try:
-        token   = AccessToken(raw_token)          # validates signature + expiry
+        token   = AccessToken(raw_token)
         user_id = token.get('user_id')
         return User.objects.select_related('business').get(id=user_id)
     except (TokenError, User.DoesNotExist, Exception):
@@ -43,9 +49,8 @@ def get_user_from_token(request):
 
 
 def jwt_response(user):
-    """Build login/register response: tokens + serialized user."""
+    """Builds the login/register response payload: tokens + serialized user."""
     refresh = RefreshToken.for_user(user)
-    # Embed role + username in the token payload for the frontend
     refresh['role']     = user.role
     refresh['username'] = user.username
     return {
@@ -56,7 +61,11 @@ def jwt_response(user):
 
 
 def require_auth(request):
-    """Returns (user, error_response). Use in every protected view."""
+    """
+    Returns (user, None) on success.
+    Returns (None, Response) when the token is missing or invalid.
+    Use at the top of every protected view.
+    """
     user = get_user_from_token(request)
     if not user:
         return None, Response(
@@ -67,7 +76,10 @@ def require_auth(request):
 
 
 def require_admin(request):
-    """Returns (user, error_response). Use in admin-only views."""
+    """
+    Returns (user, None) when the authenticated user has the ADMIN role.
+    Returns (None, Response) otherwise.
+    """
     user, err = require_auth(request)
     if err:
         return None, err
@@ -84,7 +96,7 @@ def require_admin(request):
 # ------------------------------------------------------------------
 
 class LoginView(APIView):
-    """POST /api/auth/login  — public"""
+    """POST /api/auth/login"""
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -115,8 +127,11 @@ class LoginView(APIView):
 
 
 class RegisterView(APIView):
-    """POST /api/auth/register  — public"""
+    """POST /api/auth/register"""
     permission_classes = [AllowAny]
+
+    # username must be 3-50 alphanumeric/underscore characters
+    _USERNAME_RE = re.compile(r'^[a-zA-Z0-9_]{3,50}$')
 
     def post(self, request):
         username       = request.data.get('username', '').strip()
@@ -129,7 +144,13 @@ class RegisterView(APIView):
 
         if not username or not password or not business_name:
             return Response(
-                {'error': 'Username, password and business name are required.'},
+                {'error': 'Username, password, and business name are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not self._USERNAME_RE.match(username):
+            return Response(
+                {'error': 'Username must be 3-50 characters and contain only letters, numbers, or underscores.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -147,10 +168,10 @@ class RegisterView(APIView):
 
         business = Business.objects.create(
             name           = business_name,
-            contact_person = contact_person,
-            phone          = phone,
-            email          = email,
-            address        = address,
+            contact_person = contact_person or None,
+            phone          = phone          or None,
+            email          = email          or None,
+            address        = address        or None,
         )
 
         user = User.objects.create(
@@ -164,7 +185,7 @@ class RegisterView(APIView):
 
 
 class RefreshTokenView(APIView):
-    """POST /api/auth/refresh  — public"""
+    """POST /api/auth/refresh"""
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -188,15 +209,27 @@ class RefreshTokenView(APIView):
 
 
 class LogoutView(APIView):
-    """POST /api/auth/logout  — authenticated"""
-    permission_classes = [AllowAny]   # token may be expired on logout, still allow
+    """
+    POST /api/auth/logout
+    Attempts to blacklist the refresh token if simplejwt's blacklist app
+    is installed. Silently succeeds even if blacklisting is unavailable,
+    because the frontend clears its own token storage on logout regardless.
+    """
+    permission_classes = [AllowAny]
 
     def post(self, request):
+        token_str = request.data.get('refresh', '')
+        if token_str:
+            try:
+                RefreshToken(token_str).blacklist()
+            except Exception:
+                # blacklist app not installed or token already invalid
+                pass
         return Response({'detail': 'Logged out.'}, status=status.HTTP_200_OK)
 
 
 class MeView(APIView):
-    """GET /api/auth/me  — authenticated"""
+    """GET /api/auth/me"""
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -207,8 +240,10 @@ class MeView(APIView):
 
 
 class UpdateProfileView(APIView):
-    """PATCH /api/auth/me/update  — authenticated"""
+    """PATCH /api/auth/me/update"""
     permission_classes = [AllowAny]
+
+    _UPDATABLE = ['contact_person', 'phone', 'email', 'address', 'name']
 
     def patch(self, request):
         user, err = require_auth(request)
@@ -221,13 +256,18 @@ class UpdateProfileView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        business         = user.business
-        updatable_fields = ['contact_person', 'phone', 'email', 'address', 'name']
-        for field in updatable_fields:
+        business = user.business
+        changed  = False
+        for field in self._UPDATABLE:
             if field in request.data:
                 setattr(business, field, request.data[field])
-        business.save()
+                changed = True
 
+        if changed:
+            business.save()
+
+        # re-fetch so the serializer sees the fresh related data
+        user.refresh_from_db()
         return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
 
 
@@ -251,8 +291,31 @@ class BusinessListView(APIView):
 # Orders
 # ------------------------------------------------------------------
 
+def _order_qs():
+    """Base queryset used by every order view to avoid N+1 queries."""
+    return (
+        Order.objects
+        .select_related('business')
+        .prefetch_related('items')
+    )
+
+
+def _serialize_orders(queryset, request=None):
+    """Serializes a queryset, passing request context for absolute screenshot URLs."""
+    return OrderSerializer(queryset, many=True, context={'request': request}).data
+
+
+def _serialize_order(instance, request=None):
+    """Serializes a single order instance."""
+    return OrderSerializer(instance, context={'request': request}).data
+
+
 class OrderListView(APIView):
-    """GET /api/orders/  — admin sees all, customer sees own"""
+    """
+    GET /api/orders/
+    Admin receives all orders. Customers receive only their own.
+    Optional query params: ?status=Pending  ?business_id=3 (admin only)
+    """
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -260,7 +323,7 @@ class OrderListView(APIView):
         if err:
             return err
 
-        orders = Order.objects.select_related('business').prefetch_related('items')
+        orders = _order_qs()
 
         if not user.is_admin:
             orders = orders.filter(business=user.business)
@@ -273,11 +336,11 @@ class OrderListView(APIView):
         if business_id and user.is_admin:
             orders = orders.filter(business_id=business_id)
 
-        return Response(OrderSerializer(orders, many=True).data)
+        return Response(_serialize_orders(orders, request))
 
 
 class MyOrdersView(APIView):
-    """GET /api/orders/my-orders  — authenticated customer"""
+    """GET /api/orders/my-orders  — returns the authenticated customer's orders"""
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -286,17 +349,32 @@ class MyOrdersView(APIView):
             return err
 
         orders = (
-            Order.objects
+            _order_qs()
             .filter(business=user.business)
-            .select_related('business')
-            .prefetch_related('items')
             .order_by('-order_date')
         )
-        return Response(OrderSerializer(orders, many=True).data)
+        return Response(_serialize_orders(orders, request))
 
 
 class PlaceOrderView(APIView):
-    """POST /api/orders/place  — authenticated"""
+    """
+    POST /api/orders/place  — authenticated
+
+    Accepts two content types:
+
+    1. application/json
+       {
+         "business": <id>,   (ignored for customers, forced to their own business)
+         "items":    [{"item_name": "Vanilla", "quantity": 2, "price": 150}, ...],
+         "payment_done": true | false
+       }
+
+    2. multipart/form-data  (used when a payment screenshot is attached)
+       - business:           <id>
+       - items:              JSON string  e.g. '[{"item_name": "..."}]'
+       - payment_done:       "true" | "false"
+       - payment_screenshot: image file
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -304,22 +382,67 @@ class PlaceOrderView(APIView):
         if err:
             return err
 
-        data = request.data.copy()
+        content_type = request.content_type or ''
+        is_multipart = 'multipart/form-data' in content_type
 
-        # Customers can only place orders for their own business
-        if not user.is_admin:
-            data['business'] = user.business.id
+        if is_multipart:
+            items_raw = request.data.get('items', '[]')
+            try:
+                items = json.loads(items_raw)
+            except (json.JSONDecodeError, TypeError):
+                return Response(
+                    {'error': 'items must be a valid JSON string in multipart requests.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            payment_done       = request.data.get('payment_done', 'false').lower() == 'true'
+            payment_screenshot = request.FILES.get('payment_screenshot')
+        else:
+            items              = request.data.get('items', [])
+            payment_done       = bool(request.data.get('payment_done', False))
+            payment_screenshot = None
 
-        serializer = OrderSerializer(data=data)
+        if not items:
+            return Response(
+                {'error': 'An order must have at least one item.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # customers can only order for their own business
+        business_id = user.business.id if not user.is_admin else request.data.get('business')
+        if not business_id:
+            return Response(
+                {'error': 'business is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = {
+            'business':     business_id,
+            'items':        items,
+            'payment_done': payment_done,
+        }
+
+        serializer = OrderSerializer(data=data, context={'request': request})
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         order = serializer.save()
 
-        if user.is_admin:
-            AdminLog.record(user, f'Placed order #{order.id} for business #{order.business_id}')
+        # attach screenshot after save so we have a pk for the upload path
+        if payment_screenshot:
+            order.payment_screenshot = payment_screenshot
+            order.save(update_fields=['payment_screenshot'])
 
-        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+        # log when an admin places an order on behalf of a business
+        if user.is_admin:
+            AdminLog.record(
+                user,
+                f'Placed order #{order.id} for business #{order.business_id}',
+            )
+
+        return Response(
+            _serialize_order(order, request),
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class UpdateOrderStatusView(APIView):
@@ -332,9 +455,12 @@ class UpdateOrderStatusView(APIView):
             return err
 
         try:
-            order = Order.objects.get(id=order_id)
+            order = _order_qs().get(id=order_id)
         except Order.DoesNotExist:
-            return Response({'error': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {'error': 'Order not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         new_status     = request.data.get('status')
         valid_statuses = [choice[0] for choice in Order.Status.choices]
@@ -352,9 +478,13 @@ class UpdateOrderStatusView(APIView):
             order.email_sent = True
 
         order.save(update_fields=['status', 'email_sent'])
-        AdminLog.record(user, f'Changed order #{order.id} status: {old_status} → {new_status}')
 
-        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+        AdminLog.record(
+            user,
+            f'Changed order #{order.id} status from {old_status} to {new_status}',
+        )
+
+        return Response(_serialize_order(order, request), status=status.HTTP_200_OK)
 
 
 class CancelOrderView(APIView):
@@ -367,9 +497,12 @@ class CancelOrderView(APIView):
             return err
 
         try:
-            order = Order.objects.select_related('business').get(id=order_id)
+            order = _order_qs().get(id=order_id)
         except Order.DoesNotExist:
-            return Response({'error': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {'error': 'Order not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         if not user.is_admin and order.business != user.business:
             return Response(
@@ -377,15 +510,15 @@ class CancelOrderView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if not user.is_admin and order.status != Order.Status.PENDING:
-            return Response(
-                {'error': 'Only pending orders can be cancelled.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         if order.status == Order.Status.CANCELLED:
             return Response(
                 {'error': 'Order is already cancelled.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not user.is_admin and order.status != Order.Status.PENDING:
+            return Response(
+                {'error': 'Only pending orders can be cancelled.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -395,7 +528,7 @@ class CancelOrderView(APIView):
         if user.is_admin:
             AdminLog.record(user, f'Admin cancelled order #{order.id}')
 
-        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+        return Response(_serialize_order(order, request), status=status.HTTP_200_OK)
 
 
 # ------------------------------------------------------------------
@@ -407,8 +540,7 @@ class AdminStatsView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        from django.db.models import Sum
-        from django.utils     import timezone
+        from django.utils import timezone
 
         user, err = require_admin(request)
         if err:
@@ -417,11 +549,6 @@ class AdminStatsView(APIView):
         now         = timezone.now()
         today       = now.date()
         month_start = today.replace(day=1)
-
-        total_orders     = Order.objects.count()
-        pending_count    = Order.objects.filter(status=Order.Status.PENDING).count()
-        confirmed_count  = Order.objects.filter(status=Order.Status.CONFIRMED).count()
-        total_businesses = Business.objects.count()
 
         revenue_today = (
             Order.objects
@@ -438,10 +565,10 @@ class AdminStatsView(APIView):
         )
 
         return Response({
-            'total_orders':     total_orders,
-            'pending_count':    pending_count,
-            'confirmed_count':  confirmed_count,
-            'total_businesses': total_businesses,
+            'total_orders':     Order.objects.count(),
+            'pending_count':    Order.objects.filter(status=Order.Status.PENDING).count(),
+            'confirmed_count':  Order.objects.filter(status=Order.Status.CONFIRMED).count(),
+            'total_businesses': Business.objects.count(),
             'revenue_today':    float(revenue_today),
             'revenue_month':    float(revenue_month),
         })

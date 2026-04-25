@@ -6,7 +6,6 @@ import {
 import api from '../../api';
 import './Admin.css';
 
-// SVG Icons
 const IconMoney  = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
 const IconCal    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
 const IconBox    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>;
@@ -17,8 +16,7 @@ const IconSearch = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="n
 const IconX      = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
 const IconPin    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>;
 const IconChevronRight = ({ open }) => <svg className={`expand-chevron${open ? ' open' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>;
-
-// Skeleton
+const IconImage  = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>;
 
 const AdminSkeleton = () => (
   <div className="admin-container">
@@ -34,9 +32,6 @@ const AdminSkeleton = () => (
   </div>
 );
 
-// ─────────────────────────────────────────────
-// Revenue Line Chart
-// ─────────────────────────────────────────────
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 const buildRevenueData = (orders) => {
@@ -83,9 +78,6 @@ const RevenueChart = ({ orders }) => {
   );
 };
 
-// ─────────────────────────────────────────────
-// Status Donut
-// ─────────────────────────────────────────────
 const STATUS_COLORS = { Pending: '#f97316', Confirmed: '#3b82f6', Completed: '#22c55e', Cancelled: '#ef4444' };
 
 const StatusTooltip = ({ active, payload }) => {
@@ -118,17 +110,6 @@ const StatusDonut = ({ orders }) => {
   );
 };
 
-// ─────────────────────────────────────────────
-// Status Badge
-// ─────────────────────────────────────────────
-const StatusBadge = ({ status }) => {
-  const map = { Pending: 'badge-pending', Confirmed: 'badge-confirmed', Completed: 'badge-completed', Cancelled: 'badge-cancelled' };
-  return <span className={`status-badge ${map[status] || ''}`}>{status}</span>;
-};
-
-// ─────────────────────────────────────────────
-// Status Changer
-// ─────────────────────────────────────────────
 const StatusChanger = ({ order, onUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
@@ -155,11 +136,31 @@ const StatusChanger = ({ order, onUpdate }) => {
   );
 };
 
-// ─────────────────────────────────────────────
-// Order Row
-// ─────────────────────────────────────────────
+/* Payment screenshot lightbox */
+const PaymentLightbox = ({ url, onClose }) => {
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  return (
+    <div className="pay-lightbox-overlay" onClick={onClose}>
+      <div className="pay-lightbox-box" onClick={e => e.stopPropagation()}>
+        <button className="pay-lightbox-close" onClick={onClose}><IconX /></button>
+        <img src={url} alt="Payment screenshot" className="pay-lightbox-img" />
+      </div>
+    </div>
+  );
+};
+
 const OrderRow = ({ order, onUpdate }) => {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded,    setExpanded]    = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
+
+  /* payment_screenshot_url expected from API if customer uploaded one */
+  const paymentUrl = order.payment_screenshot_url || null;
+
   return (
     <>
       <tr className={`order-table-row${expanded ? ' expanded' : ''}`}>
@@ -173,23 +174,47 @@ const OrderRow = ({ order, onUpdate }) => {
         <td className="td-date">{new Date(order.order_date).toLocaleDateString('en-NP', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
         <td className="td-items">{order.items.length} item{order.items.length !== 1 ? 's' : ''}</td>
         <td className="td-total"><span className="total-cell">रु{parseFloat(order.total_amount).toFixed(2)}</span></td>
+        <td className="td-payment">
+          {paymentUrl ? (
+            <button className="pay-thumb-btn" onClick={() => setLightboxUrl(paymentUrl)} title="View payment screenshot">
+              <IconImage /> View
+            </button>
+          ) : (
+            <span className="pay-none-label">No receipt</span>
+          )}
+        </td>
         <td className="td-status"><StatusChanger order={order} onUpdate={onUpdate} /></td>
       </tr>
       {expanded && (
         <tr className="order-detail-row">
-          <td colSpan={6}>
+          <td colSpan={7}>
             <div className="order-detail-panel">
-              <div className="order-detail-items">
-                <div className="detail-items-header"><span>Flavour</span><span>Qty</span><span>Unit Price</span><span>Subtotal</span></div>
-                {order.items.map((item, i) => (
-                  <div key={i} className="detail-item-row">
-                    <span>{item.item_name}</span>
-                    <span>× {item.quantity}</span>
-                    <span>रु{parseFloat(item.price).toFixed(2)}</span>
-                    <span className="detail-subtotal">रु{parseFloat(item.subtotal).toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
+              {/* payment section */}
+              {paymentUrl && (
+                <div className="admin-payment-section">
+                  <p className="admin-payment-label">Payment Screenshot</p>
+                  <img
+                    src={paymentUrl}
+                    alt="Payment proof"
+                    className="admin-payment-thumb"
+                    onClick={() => setLightboxUrl(paymentUrl)}
+                  />
+                </div>
+              )}
+              {order.payment_done && (
+                <div className="admin-payment-badge">
+                  <IconCheck /> Payment Confirmed by Customer
+                </div>
+              )}
+              <div className="detail-items-header"><span>Flavour</span><span>Qty</span><span>Unit Price</span><span>Subtotal</span></div>
+              {order.items.map((item, i) => (
+                <div key={i} className="detail-item-row">
+                  <span>{item.item_name}</span>
+                  <span>x {item.quantity}</span>
+                  <span>रु{parseFloat(item.price).toFixed(2)}</span>
+                  <span className="detail-subtotal">रु{parseFloat(item.subtotal).toFixed(2)}</span>
+                </div>
+              ))}
               <div className="detail-total-row">
                 <span>Order Total</span>
                 <span className="detail-grand-total">रु{parseFloat(order.total_amount).toFixed(2)}</span>
@@ -198,13 +223,11 @@ const OrderRow = ({ order, onUpdate }) => {
           </td>
         </tr>
       )}
+      {lightboxUrl && <PaymentLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
     </>
   );
 };
 
-// ─────────────────────────────────────────────
-// Activity Log
-// ─────────────────────────────────────────────
 const AdminLogTab = () => {
   const [logs,    setLogs]    = useState([]);
   const [loading, setLoading] = useState(true);
@@ -239,9 +262,8 @@ const AdminLogTab = () => {
   );
 };
 
-// ─────────────────────────────────────────────
-// Admin
-// ─────────────────────────────────────────────
+/* BUG FIX: useEffect was called after a conditional return violating rules of hooks.
+   All hooks are now declared at the top before any early returns. */
 const Admin = ({ currentUser, setActivePage }) => {
   const [stats,        setStats]        = useState(null);
   const [orders,       setOrders]       = useState([]);
@@ -252,19 +274,9 @@ const Admin = ({ currentUser, setActivePage }) => {
   const [sortBy,       setSortBy]       = useState('date_desc');
   const [activeTab,    setActiveTab]    = useState('orders');
 
-  if (currentUser.role !== 'ADMIN') {
-    return (
-      <div className="admin-page">
-        <div className="admin-access-denied">
-          <h2>Access Denied</h2>
-          <p>This area is for admins only.</p>
-          <button className="btn-admin-back" onClick={() => setActivePage('home')}><IconHome /> Go Home</button>
-        </div>
-      </div>
-    );
-  }
-
+  /* hooks must run unconditionally */
   useEffect(() => {
+    if (currentUser.role !== 'ADMIN') return;
     const load = async () => {
       setLoading(true); setLoadError('');
       try {
@@ -274,7 +286,7 @@ const Admin = ({ currentUser, setActivePage }) => {
       finally { setLoading(false); }
     };
     load();
-  }, []);
+  }, [currentUser.role]);
 
   const handleOrderUpdate = (updatedOrder) =>
     setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
@@ -307,6 +319,19 @@ const Admin = ({ currentUser, setActivePage }) => {
       }
     });
   }, [orders, filterStatus, searchQuery, sortBy]);
+
+  /* access guard after all hooks */
+  if (currentUser.role !== 'ADMIN') {
+    return (
+      <div className="admin-page">
+        <div className="admin-access-denied">
+          <h2>Access Denied</h2>
+          <p>This area is for admins only.</p>
+          <button className="btn-admin-back" onClick={() => setActivePage('home')}><IconHome /> Go Home</button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) return <div className="admin-page"><AdminSkeleton /></div>;
 
@@ -344,7 +369,6 @@ const Admin = ({ currentUser, setActivePage }) => {
           <span className="admin-badge">Admin</span>
         </div>
 
-        {/* Stat cards */}
         {stats && (
           <div className="admin-stats-grid">
             {statCards.map(({ label, value, variant, icon }) => (
@@ -359,13 +383,12 @@ const Admin = ({ currentUser, setActivePage }) => {
           </div>
         )}
 
-        {/* Charts */}
         {orders.length > 0 && (
           <div className="admin-charts-row">
             <div className="admin-chart-card">
               <div className="admin-chart-header">
                 <h3>Revenue Trend</h3>
-                <p className="chart-subtitle">Last 6 months · excl. cancelled</p>
+                <p className="chart-subtitle">Last 6 months excl. cancelled</p>
               </div>
               <RevenueChart orders={orders} />
             </div>
@@ -379,7 +402,6 @@ const Admin = ({ currentUser, setActivePage }) => {
           </div>
         )}
 
-        {/* Tabs */}
         <div className="admin-tabs">
           {[
             { id: 'orders', label: 'Orders'       },
@@ -397,7 +419,7 @@ const Admin = ({ currentUser, setActivePage }) => {
               <div className="admin-search-wrap">
                 <span className="search-icon-svg"><IconSearch /></span>
                 <input type="text" className="admin-search"
-                  placeholder="Search by order ID, business, or flavour…"
+                  placeholder="Search by order ID, business, or flavour"
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                 {searchQuery && (
                   <button className="search-clear" onClick={() => setSearchQuery('')}><IconX /></button>
@@ -426,7 +448,7 @@ const Admin = ({ currentUser, setActivePage }) => {
             ) : (
               <div className="admin-table-wrap">
                 <table className="admin-table">
-                  <thead><tr><th>Order</th><th>Business</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Order</th><th>Business</th><th>Date</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead>
                   <tbody>{displayedOrders.map(order => <OrderRow key={order.id} order={order} onUpdate={handleOrderUpdate} />)}</tbody>
                 </table>
               </div>

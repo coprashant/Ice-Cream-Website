@@ -1,4 +1,4 @@
-from django.db import models
+from django.db   import models
 from django.utils import timezone
 
 
@@ -61,16 +61,28 @@ class Order(models.Model):
         db_column='business_id',
     )
     order_date   = models.DateTimeField(default=timezone.now)
-    status       = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    status       = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     email_sent   = models.BooleanField(default=False)
+
+    # NEW: payment fields added for frontend payment flow
+    payment_done       = models.BooleanField(default=False)
+    payment_screenshot = models.ImageField(
+        upload_to='payment_screenshots/',
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         db_table = 'orders'
         ordering = ['-order_date']
 
     def __str__(self):
-        return f'Order #{self.id} — {self.business} ({self.status})'
+        return f'Order #{self.id} - {self.business} ({self.status})'
 
     def recalculate_total(self):
         total = sum(item.subtotal for item in self.items.all())

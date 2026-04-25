@@ -857,6 +857,118 @@ body.dark-mode .cancelled-label { color: #ef9a9a; }
 .empty-state p     { margin: 0; font-size: 0.95rem; }
 .empty-state.large { padding: 80px 20px; }
 
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.chart-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 20px 24px;
+  box-shadow: 0 2px 12px var(--shadow-sm);
+}
+
+.chart-card-header { margin-bottom: 16px; }
+
+.chart-card-header h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.chart-subtitle {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.chart-empty {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 40px 0;
+}
+
+.chart-tooltip {
+  background: var(--card-bg);
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px var(--shadow-md);
+}
+
+.chart-tooltip-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.chart-tooltip-value {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  margin: 0;
+}
+
+.stat-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+.stat-icon-wrap.accent {
+  background: rgba(255,255,255,0.2);
+  color: white;
+}
+
+.stat-icon-wrap.warning {
+  background: rgba(245,158,11,0.12);
+  color: #d97706;
+}
+
+.stat-icon-wrap.success {
+  background: rgba(34,197,94,0.12);
+  color: #16a34a;
+}
+
+body.dark-mode .stat-icon-wrap.warning { color: #fbbf24; }
+body.dark-mode .stat-icon-wrap.success { color: #4ade80; }
+
+.welcome-banner-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+/* responsive fix for charts-row */
+@media (max-width: 640px) {
+  .charts-row { grid-template-columns: 1fr; }
+}
+
 /* ─────────────────────────────────────────────
    Responsive
 ───────────────────────────────────────────── */

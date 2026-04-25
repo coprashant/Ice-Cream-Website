@@ -34,48 +34,27 @@ const Contact = () => {
         <div className="contact-header">
           <span className="section-eyebrow">Get In Touch</span>
           <h1 className="contact-title">
-            We'd Love to<br />
+            We&apos;d Love to<br />
             <span className="title-accent">Hear from You</span>
           </h1>
           <p className="contact-sub">Questions, orders, or just want to say hi? Reach out anytime.</p>
         </div>
 
-        <div class="contact-layout">
-          {/* Contact channels */}
+        {/* BUG FIX: was using class instead of className */}
+        <div className="contact-layout">
           <div className="contact-card">
             <h3 className="card-section-title">
               <span className="card-title-icon"><IconChannels /></span>
               Contact Channels
             </h3>
             <div className="contact-list">
-              <ContactItem
-                icon={<IconPhone />}
-                label="Phone 1"
-                value="98xxxxxxxx"
-                href="tel:+9779811111111"
-              />
-              <ContactItem
-                icon={<IconPhone />}
-                label="Phone 2"
-                value="98xxxxxxxx"
-                href="tel:+9779800000000"
-              />
-              <ContactItem
-                icon={<IconMail />}
-                label="Email"
-                value="sheetal.icecream@gmail.com"
-                href="mailto:sheetal.icecream@gmail.com"
-              />
-              <ContactItem
-                icon={<IconFacebook />}
-                label="Facebook"
-                value="Prasant Bhattarai"
-                href="https://www.facebook.com"
-              />
+              <ContactItem icon={<IconPhone />} label="Phone 1" value="98xxxxxxxx" href="tel:+9779811111111" />
+              <ContactItem icon={<IconPhone />} label="Phone 2" value="98xxxxxxxx" href="tel:+9779800000000" />
+              <ContactItem icon={<IconMail />} label="Email" value="sheetal.icecream@gmail.com" href="mailto:sheetal.icecream@gmail.com" />
+              <ContactItem icon={<IconFacebook />} label="Facebook" value="Prasant Bhattarai" href="https://www.facebook.com" />
             </div>
           </div>
 
-          {/* Location and hours */}
           <div className="contact-card location-card">
             <h3 className="card-section-title">
               <span className="card-title-icon"><IconPin /></span>
@@ -90,33 +69,25 @@ const Contact = () => {
             </div>
             <div className="hours-block">
               <div className="hours-row">
-                <span className="hours-days">
-                  <IconClock /> Mon – Sat
-                </span>
-                <span className="hours-time">9:00 AM – 9:00 PM</span>
+                <span className="hours-days"><IconClock /> Mon Sat</span>
+                <span className="hours-time">9:00 AM 9:00 PM</span>
               </div>
               <div className="hours-row">
-                <span className="hours-days">
-                  <IconClock /> Sunday
-                </span>
-                <span className="hours-time">10:00 AM – 8:00 PM</span>
+                <span className="hours-days"><IconClock /> Sunday</span>
+                <span className="hours-time">10:00 AM 8:00 PM</span>
               </div>
             </div>
           </div>
 
-          {/* Email CTA */}
           <div className="contact-card message-card">
             <h3 className="card-section-title">
               <span className="card-title-icon"><IconMessage /></span>
               Send a Message
             </h3>
             <p className="message-card-sub">
-              For bulk orders or business inquiries, send us a message and we'll get back to you within 24 hours.
+              For bulk orders or business inquiries, send us a message and we&apos;ll get back to you within 24 hours.
             </p>
-            <a
-              href="mailto:sheetal.icecream@gmail.com?subject=Inquiry from Website"
-              className="btn-primary email-btn"
-            >
+            <a href="mailto:sheetal.icecream@gmail.com?subject=Inquiry from Website" className="btn-primary email-btn">
               <IconMail /> Email Us
             </a>
           </div>
