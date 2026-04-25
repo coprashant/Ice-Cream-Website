@@ -10,24 +10,17 @@ import Dashboard                  from './pages/dashboard/Dashboard';
 import Admin                      from './pages/admin/Admin';
 import { tokenStorage, decodeToken, setAuthFailureHandler } from './api';
 
-// ── Read the stored user safely on startup ──
-// Role is re-derived from the JWT payload, not from a plain stored string.
-// This means even if someone edits localStorage manually, the server will
-// reject their requests because the token signature won't match.
 const getInitialUser = () => {
   const stored      = tokenStorage.getUser();
   const accessToken = tokenStorage.getAccess();
   if (!stored || !accessToken) return null;
 
-  // Check the token hasn't expired client-side (server checks too, but
-  // this avoids showing a logged-in UI to someone with a dead token)
   const payload = decodeToken(accessToken);
   if (!payload || payload.exp * 1000 < Date.now()) {
     tokenStorage.clearTokens();
     return null;
   }
 
-  // Re-derive role from the token payload — not from localStorage directly
   return { ...stored, role: payload.role };
 };
 
@@ -36,8 +29,6 @@ function AppContent() {
   const [pageKey,      setPageKey]      = useState(0);
   const [currentUser,  setCurrentUser]  = useState(getInitialUser);
 
-  // Register the logout-on-auth-failure handler so api.js can call it
-  // when a token refresh fails (session truly expired)
   useEffect(() => {
     setAuthFailureHandler(() => {
       setCurrentUser(null);
@@ -53,11 +44,9 @@ function AppContent() {
   };
 
   const handleLogin = (responseData) => {
-    // responseData = { access, refresh, user } from the backend
     tokenStorage.setTokens(responseData.access, responseData.refresh);
     tokenStorage.setUser(responseData.user);
 
-    // Derive role from token payload — authoritative source
     const payload  = decodeToken(responseData.access);
     const user     = { ...responseData.user, role: payload?.role ?? responseData.user.role };
     setCurrentUser(user);
@@ -66,10 +55,9 @@ function AppContent() {
   };
 
   const handleLogout = async () => {
-    // Fire-and-forget — backend just acknowledges, main action is clearing tokens
     try {
       await import('./api').then(m => m.default.post('/auth/logout', {}));
-    } catch { /* ignore — we clear locally regardless */ }
+    } catch { }
 
     tokenStorage.clearTokens();
     setCurrentUser(null);
@@ -81,9 +69,6 @@ function AppContent() {
     setCurrentUser(prev => ({ ...prev, ...updatedUser }));
   };
 
-  // ── Route guards ──
-  // These are redundant with server-side enforcement but prevent
-  // accidental rendering of protected pages in the UI.
   const isAdmin    = currentUser?.role === 'ADMIN';
   const isLoggedIn = !!currentUser;
 
