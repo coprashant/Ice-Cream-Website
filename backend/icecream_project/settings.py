@@ -80,7 +80,12 @@ DATABASES = {
     )
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "https://sheetalicecream.vercel.app",
+    "https://sheetalicecreamudhyog.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:5173",
+]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "content-type",
