@@ -299,8 +299,8 @@ const PaymentSection = ({
         </div>
         <div className="qr-info">
           <p className="qr-bank-name">Sheetal Ice Cream</p>
-          <p className="qr-bank-detail">Account: <strong>XXXX-XXXX-XXXX</strong></p>
-          <p className="qr-bank-detail">Bank: <strong>Your Bank Name</strong></p>
+          <p className="qr-bank-detail">Account: <strong>1280124031300001</strong></p>
+          <p className="qr-bank-detail">Bank: <strong>Kumari Bank</strong></p>
           <p className="qr-instruction">
             Scan the QR or transfer to the account above, then upload the screenshot below.
           </p>
