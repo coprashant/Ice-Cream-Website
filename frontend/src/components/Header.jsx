@@ -29,29 +29,39 @@ const AuthModal = ({ onClose, onLogin }) => {
 
   const handleOverlayClick = (e) => { if (e.target === overlayRef.current) onClose(); };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true); setError('');
-    try {
-      const res  = await fetch(`${API_BASE}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(loginForm) });
-      const data = await res.json();
-      if (res.ok) { onLogin(data); onClose(); }
-      else setError(data.error || 'Login failed.');
-    } catch { setError('Cannot reach server.'); }
-    finally { setLoading(false); }
-  };
+  // Inside AuthModal component in Header.jsx
 
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    setLoading(true); setError('');
-    try {
-      const res  = await fetch(`${API_BASE}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(regForm) });
-      const data = await res.json();
-      if (res.ok) { onLogin(data); onClose(); }
-      else setError(data.error || 'Registration failed.');
-    } catch { setError('Cannot reach server.'); }
-    finally { setLoading(false); }
-  };
+const handleLogin = async (e) => {
+  e.preventDefault();
+  setLoading(true); setError('');
+  try {
+    const res  = await fetch(`${API_BASE}/auth/login/`, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify(loginForm) 
+    });
+    const data = await res.json();
+    if (res.ok) { onLogin(data); onClose(); }
+    else setError(data.error || 'Login failed.');
+  } catch { setError('Cannot reach server.'); }
+  finally { setLoading(false); }
+};
+
+const handleRegister = async (e) => {
+  e.preventDefault();
+  setLoading(true); setError('');
+  try {
+    const res  = await fetch(`${API_BASE}/auth/register/`, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify(regForm) 
+    });
+    const data = await res.json();
+    if (res.ok) { onLogin(data); onClose(); }
+    else setError(data.error || 'Registration failed.');
+  } catch { setError('Cannot reach server.'); }
+  finally { setLoading(false); }
+};
 
   const updateReg = (field) => (e) => setReg(p => ({ ...p, [field]: e.target.value }));
 

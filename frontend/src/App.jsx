@@ -55,14 +55,14 @@ function AppContent() {
   };
 
   const handleLogout = async () => {
-    try {
-      await import('./api').then(m => m.default.post('/auth/logout', {}));
-    } catch { }
+  try {
+    await import('./api').then(m => m.default.post('/auth/logout/', {}));
+  } catch { }
 
-    tokenStorage.clearTokens();
-    setCurrentUser(null);
-    navigate('home');
-  };
+  tokenStorage.clearTokens();
+  setCurrentUser(null);
+  navigate('home');
+};
 
   const handleProfileUpdate = (updatedUser) => {
     tokenStorage.setUser(updatedUser);
