@@ -43,7 +43,7 @@ const silentRefresh = async () => {
     const refreshToken = tokenStorage.getRefresh();
     if (!refreshToken) throw new Error('No refresh token');
 
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+    const res = await fetch(`${API_BASE}/auth/refresh/`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ refresh: refreshToken }),
@@ -59,6 +59,13 @@ const silentRefresh = async () => {
   return refreshPromise;
 };
 
+// ── Helper to ensure trailing slash on all request paths ──
+const ensureTrailingSlash = (path) => {
+  const [pathname, search] = path.split('?');
+  const formattedPath = pathname.endsWith('/') ? pathname : `${pathname}/`;
+  return search ? `${formattedPath}?${search}` : formattedPath;
+};
+
 // ── Core request function ──
 const request = async (method, path, body = null, retry = true) => {
   const accessToken = tokenStorage.getAccess();
@@ -69,7 +76,10 @@ const request = async (method, path, body = null, retry = true) => {
   const options = { method, headers };
   if (body) options.body = JSON.stringify(body);
 
-  const res = await fetch(`${API_BASE}${path}`, options);
+  // Auto-format path so missing trailing slashes don't break Django
+  const formattedPath = ensureTrailingSlash(path);
+
+  const res = await fetch(`${API_BASE}${formattedPath}`, options);
 
   // ── Silent refresh on 401 ──
   if (res.status === 401 && retry) {
