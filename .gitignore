@@ -37,6 +37,8 @@ frontend/build/
 frontend/.env
 frontend/.env.local
 frontend/.env.*.local
+frontend/package-lock.json
+frontend/yarn.lock
 
 # Vite cache
 frontend/.vite/
